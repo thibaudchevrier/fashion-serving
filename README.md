@@ -115,7 +115,7 @@ When fashion-seg-train has merged a new model into `main`, meaning a new `dvc.lo
 ```bash
 uv run dvc update --rev main models/fashion-maskrcnn.dvc   # moves rev_lock to main's latest commit
 make up && make smoke                                      # rebuild the inference image, check it
-git commit -am "Deploy fashion-seg-train@<short-sha>"         # the pin is versioned: easy rollback
+git commit -am "build(model): deploy fashion-seg-train@<short-sha>"   # versioned pin: easy rollback
 ```
 
 To roll back, revert that commit, then `make model` and `make up`.
@@ -123,6 +123,7 @@ To roll back, revert that commit, then `make model` and `make up`.
 ## Development
 
 ```bash
+uv run pre-commit install --hook-type pre-commit --hook-type commit-msg   # once
 make format       # ruff format + autofix
 make check        # ruff, pylint, pytest
 cd webapp && INFERENCE_URL=http://localhost:5001 \
@@ -131,6 +132,18 @@ cd webapp && INFERENCE_URL=http://localhost:5001 \
 
 The webapp tests use a fake inference client, which is itself validated against the contract, so
 they run without the model or Docker.
+
+### Commits, versions and releases
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(webapp): ...`,
+`fix: ...`, `build(model): deploy ...`, `docs: ...`. They are checked by the `commit-msg` hook and on
+every PR by CI. `uv run cz commit` writes one interactively.
+
+Releases are automatic. On every merge to `main`, [commitizen](https://commitizen-tools.github.io/commitizen/)
+reads the commits since the last tag. A `feat` (minor), `fix`/`perf` (patch) or breaking change
+(minor while < 1.0) bumps the version in `pyproject.toml` and `uv.lock`, updates `CHANGELOG.md`,
+tags `vX.Y.Z` and publishes a GitHub Release. Other types never release, including
+`build(model)` deploys: the deployed model is identified by the pin in `models/fashion-maskrcnn.dvc`.
 
 ## Continuous integration
 
