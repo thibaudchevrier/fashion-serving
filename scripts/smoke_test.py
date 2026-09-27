@@ -9,22 +9,14 @@ Usage: uv run --project webapp python scripts/smoke_test.py [--inference URL] [-
 import argparse
 import base64
 import io
-import json
 import re
 import sys
 import time
-from pathlib import Path
 
-import jsonschema
 import numpy as np
 import requests
+from fashion_seg_contract import schema
 from PIL import Image
-
-CONTRACT = json.loads(
-    (Path(__file__).parents[1] / "contracts" / "prediction.schema.json").read_text(
-        encoding="utf-8"
-    )
-)
 
 
 def wait_until_up(url: str, timeout: float = 180) -> None:
@@ -69,7 +61,7 @@ def main() -> None:
     )
     response.raise_for_status()
     [prediction] = response.json()["predictions"]
-    jsonschema.validate(prediction, CONTRACT)
+    schema.validate(prediction)
     print(
         f"OK inference: {len(prediction['instances'])} instance(s), response matches contract"
     )

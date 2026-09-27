@@ -28,9 +28,12 @@ The model is trained and packaged in
 | **inference** | Installs the model's own `requirements.txt` and runs `mlflow models serve` | No |
 | **webapp** | Sends base64 images to `/invocations`, draws the returned masks | No, it only knows the JSON contract |
 
-The only coupling is the **response contract** in `contracts/prediction.schema.json`, a copy of
-the one in fashion-seg-train. A new model (for example PyTorch instead of TensorFlow) is a swap as long
-as fashion-seg-train packages it with the same contract: `dvc update`, then rebuild the inference image.
+The only coupling is the **response contract**, a released package shared with fashion-seg-train:
+[fashion-seg-contract](https://github.com/thibaudchevrier/fashion-seg-contract) (JSON Schema, RLE
+decoding, labels). The webapp decodes masks with it, and its tests and the smoke test validate
+responses with it. A new model (for example PyTorch instead of TensorFlow) is a swap as long as
+fashion-seg-train packages it with the same contract version: `dvc update`, then rebuild the
+inference image.
 
 ### What is in the repository
 
@@ -38,9 +41,8 @@ as fashion-seg-train packages it with the same contract: `dvc update`, then rebu
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | Import pointer: source repo, `rev` (branch/tag) and `rev_lock` (exact commit) |
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
-| `webapp/` | Flask app (uv project): `src/fashion_webapp/`, tests, Dockerfile |
+| `webapp/` | Flask app (uv project): `src/fashion_webapp/`, tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
-| `contracts/prediction.schema.json` | Model response contract (keep in sync with fashion-seg-train) |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |
 
