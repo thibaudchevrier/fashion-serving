@@ -1,0 +1,9 @@
+.git
+.venv
+.dvc/cache
+.dvc/tmp
+.dvc/*.local
+**/__pycache__
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
