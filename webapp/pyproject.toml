@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Upload photos, get clothing segmentation from the inference service, display the results"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "fashion-seg-contract",
     "flask>=3.1.3",
     "gunicorn>=26.2.0",
     "numpy>=2.5.3",
@@ -29,7 +30,7 @@ testpaths = ["tests"]
 
 [dependency-groups]
 dev = [
-    "jsonschema>=4.26.0",
+    "fashion-seg-contract[validate]",
     "pylint>=4.0.9",
     "pytest>=9.1.1",
     "ruff>=0.16.9",
@@ -43,3 +44,7 @@ disable = ["too-few-public-methods"]
 
 [tool.pylint.format]
 max-line-length = 100
+
+[tool.uv.sources]
+# Released wheel, referenced by URL like a package from a registry (GitHub Releases).
+fashion-seg-contract = { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" }

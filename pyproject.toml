@@ -21,5 +21,6 @@ package = false
 name = "cz_conventional_commits"
 version_provider = "uv"          # bumps pyproject.toml and uv.lock together
 tag_format = "v$version"
+annotated_tag = true
 update_changelog_on_bump = true
 major_version_zero = true        # breaking changes bump the minor version while < 1.0

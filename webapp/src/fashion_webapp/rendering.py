@@ -5,9 +5,8 @@ import io
 from typing import Any
 
 import numpy as np
+from fashion_seg_contract import rle
 from PIL import Image, ImageDraw
-
-from fashion_webapp import rle
 
 MASK_ALPHA = 0.45
 

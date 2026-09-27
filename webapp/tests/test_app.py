@@ -1,20 +1,13 @@
 import io
-import json
-from pathlib import Path
 
-import jsonschema
 import numpy as np
 import pytest
+from fashion_seg_contract import rle, schema
 from PIL import Image
 
-from fashion_webapp import create_app, rle
+from fashion_webapp import create_app
 from fashion_webapp.inference import InferenceError
 from fashion_webapp.rendering import render_overlay
-
-# Copy of fashion-seg-train/contracts/prediction.schema.json: the model's response format.
-CONTRACT = json.loads(
-    (Path(__file__).parents[2] / "contracts" / "prediction.schema.json").read_text(encoding="utf-8")
-)
 
 
 def _jpeg(width=120, height=80, color=(200, 180, 160)) -> bytes:
@@ -45,19 +38,13 @@ class FakeClient:
                     "label": "dress",
                     "score": 0.93,
                     "box": [10, 20, 30, 60],
-                    "mask_rle": _encode(mask),
+                    "mask_rle": rle.encode(mask),
                 },
             ],
         }
         # The fake must honour the contract, or these tests prove nothing about the real model.
-        jsonschema.validate(response, CONTRACT)
+        schema.validate(response)
         return response
-
-
-def _encode(mask):
-    flat = np.concatenate([[False], mask.flatten(order="F"), [False]])
-    t = np.flatnonzero(flat[1:] != flat[:-1]) + 1
-    return " ".join(f"{s} {e - s}" for s, e in zip(t[::2], t[1::2], strict=True))
 
 
 @pytest.fixture
@@ -128,11 +115,6 @@ def test_delete_and_invalid_ids(make_client, tmp_path):
     assert client.get("/images/..%2Fsecret.jpg").status_code == 404
     client.post(f"/images/{image_id}/delete")
     assert not list(tmp_path.iterdir())
-
-
-def test_rle_decode_matches_annotation_format():
-    mask = rle.decode("1 2 4 1", height=3, width=2)
-    np.testing.assert_array_equal(mask, [[1, 1], [1, 0], [0, 0]])
 
 
 def test_render_overlay_rejects_size_mismatch():
