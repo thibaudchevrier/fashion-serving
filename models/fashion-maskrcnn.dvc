@@ -1,12 +1,12 @@
-md5: 8e9340c26a7136a7308a14c38dfdbfde
+md5: 5e688b4f22a1017da63719c65da7df17
 frozen: true
 deps:
 - path: models/fashion-maskrcnn
   repo:
-    url: https://github.com/thibaudchevrier/maskrcnn-train.git
+    url: https://github.com/thibaudchevrier/fashion-seg-train.git
     rev: main
-    rev_lock: 6c339858bdcd019cb05dad78f300afbf1dcf512e
-    config: .dvc/maskrcnn-train.config.local
+    rev_lock: 5ea00f85f12cb614e100b9eb86363d0ac02cf3a4
+    config: .dvc/fashion-seg-train.config.local
 outs:
 - md5: 0c62b94447f12ffd62cf8f7e8f96a97d.dir
   size: 266093773

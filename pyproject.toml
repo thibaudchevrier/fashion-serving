@@ -6,7 +6,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [dependency-groups]
-# Repo tooling: DVC fetches the model packaged by maskrcnn-train.
+# Repo tooling: DVC fetches the model packaged by fashion-seg-train.
 dev = ["dvc[gdrive]>=3.59", "pyopenssl>=24.2.1"]
 
 [tool.uv]

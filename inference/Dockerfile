@@ -1,4 +1,4 @@
-# Serves the MLflow model imported from maskrcnn-train (models/fashion-maskrcnn).
+# Serves the MLflow model imported from fashion-seg-train (models/fashion-maskrcnn).
 # Build context: repository root.
 FROM python:3.12-slim
 

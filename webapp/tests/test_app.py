@@ -11,7 +11,7 @@ from fashion_webapp import create_app, rle
 from fashion_webapp.inference import InferenceError
 from fashion_webapp.rendering import render_overlay
 
-# Copy of maskrcnn-train/contracts/prediction.schema.json: the model's response format.
+# Copy of fashion-seg-train/contracts/prediction.schema.json: the model's response format.
 CONTRACT = json.loads(
     (Path(__file__).parents[2] / "contracts" / "prediction.schema.json").read_text(encoding="utf-8")
 )

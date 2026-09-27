@@ -1,6 +1,6 @@
 """Decoding of the masks returned by the inference service.
 
-Same encoding as the iMaterialist annotations (``fashion_seg.rle`` in maskrcnn-train):
+Same encoding as the iMaterialist annotations (``fashion_seg.rle`` in fashion-seg-train):
 space-separated ``start length`` pairs, 1-indexed, column-major pixel order.
 """
 

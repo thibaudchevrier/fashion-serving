@@ -78,9 +78,9 @@ jobs:
         with:
           enable-cache: true
       - run: make install
-      - name: Configure access to maskrcnn-train's DVC remote
+      - name: Configure access to fashion-seg-train's DVC remote
         run: |
-          cat > .dvc/maskrcnn-train.config.local <<'CFG'
+          cat > .dvc/fashion-seg-train.config.local <<'CFG'
           ['remote "myremote"']
               gdrive_use_service_account = true
           CFG
