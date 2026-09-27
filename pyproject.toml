@@ -7,7 +7,19 @@ dependencies = []
 
 [dependency-groups]
 # Repo tooling: DVC fetches the model packaged by fashion-seg-train.
-dev = ["dvc[gdrive]>=3.59", "pyopenssl>=24.2.1"]
+dev = [
+    "commitizen>=4.19",
+    "dvc[gdrive]>=3.59",
+    "pre-commit>=4",
+    "pyopenssl>=24.2.1",
+]
 
 [tool.uv]
 package = false
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "uv"          # bumps pyproject.toml and uv.lock together
+tag_format = "v$version"
+update_changelog_on_bump = true
+major_version_zero = true        # breaking changes bump the minor version while < 1.0
