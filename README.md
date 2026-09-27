@@ -142,7 +142,7 @@ Commit messages follow [Conventional Commits](https://www.conventionalcommits.or
 every PR by CI. `uv run cz commit` writes one interactively.
 
 Releases are automatic. On every merge to `main`, [commitizen](https://commitizen-tools.github.io/commitizen/)
-reads the commits since the last tag. A `feat` (minor), `fix`/`perf` (patch) or breaking change
+reads the commits since the last tag. A `feat` (minor), `fix`/`perf`/`refactor` (patch) or breaking change
 (minor while < 1.0) bumps the version in `pyproject.toml` and `uv.lock`, updates `CHANGELOG.md`,
 tags `vX.Y.Z` and publishes a GitHub Release. Other types never release, including
 `build(model)` deploys: the deployed model is identified by the pin in `models/fashion-maskrcnn.dvc`.
