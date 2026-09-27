@@ -1,0 +1,11 @@
+# Credentials for maskrcnn-train's Google Drive remote (see README)
+/.dvc/maskrcnn-train.config.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+.DS_Store
