@@ -107,6 +107,15 @@ wheels = [
 ]
 
 [[package]]
+name = "docstring-parser-fork"
+version = "0.0.16"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/ce/48b17c6c24d0af112f73721a90fac245450e548b82b53169260720f60d07/docstring_parser_fork-0.0.16.tar.gz", hash = "sha256:9ecf861ceab8b87d1297a71001c15a1956ad02e87434ee6473643a5988094f7c", size = 36360, upload-time = "2026-07-03T07:27:46.668Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/69/427c34e61827818942b48ececd7c892b8f58ba4ce4cfc89ba9fd8dbe8a8d/docstring_parser_fork-0.0.16-py3-none-any.whl", hash = "sha256:c024c97af582d6acf85a14f0b332b3a2ab08626648d251c25e47191f33064386", size = 25253, upload-time = "2026-07-03T07:27:45.591Z" },
+]
+
+[[package]]
 name = "fashion-seg-contract"
 version = "0.1.0"
 source = { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" }
@@ -145,6 +154,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "fashion-seg-contract", extra = ["validate"] },
+    { name = "pydoclint" },
     { name = "pylint" },
     { name = "pytest" },
     { name = "ruff" },
@@ -163,6 +173,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "fashion-seg-contract", extras = ["validate"], url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" },
+    { name = "pydoclint", specifier = ">=0.10.0" },
     { name = "pylint", specifier = ">=4.0.9" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.9" },
@@ -374,6 +385,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "pydoclint"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "docstring-parser-fork" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f6/6b/4a5f2916ec04191394eba75500ab4fe978703442c1c1606f0fc67bc72834/pydoclint-0.10.0.tar.gz", hash = "sha256:248cf17f43fceb8c6c70ed143c6b89efdb8029b6e70b44e655316713b0af71c3", size = 221213, upload-time = "2026-09-27T19:53:00.373Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/18/9dc98449392814ebbf990b9c88e7617aa8dd2ba50bc6d379fedfd69df0b5/pydoclint-0.10.0-py3-none-any.whl", hash = "sha256:752b30542b060c19c016134fc8438614489c3b8c0f5c715112dbe53ed90110b8", size = 90419, upload-time = "2026-09-27T19:52:59.207Z" },
 ]
 
 [[package]]

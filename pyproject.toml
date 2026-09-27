@@ -17,6 +17,31 @@ dev = [
 [tool.uv]
 package = false
 
+# Lint config for all Python code (webapp/ and scripts/); pylint's is in webapp/pyproject.toml.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["models"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, pyupgrade, bugbear, comprehensions, simplify, docstrings
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "D"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fashion_webapp"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+# Every parameter, return value and raised exception is documented (numpy style), with types
+# matching the signature's annotations. Tests only need short docstrings (ruff D).
+[tool.pydoclint]
+style = "numpy"
+exclude = '\.venv|tests|models'
+skip-checking-short-docstrings = false
+arg-type-hints-in-docstring = true
+check-return-types = true
+
 [tool.commitizen]
 name = "cz_conventional_commits"
 version_provider = "uv"          # bumps pyproject.toml and uv.lock together

@@ -1,22 +1,21 @@
-# Same commands locally and in CI (.github/workflows/ci.yml).
+# `lint` runs the pre-commit hooks on every file: the same checks as the git hooks and CI.
 WEBAPP = uv run --project webapp
-PYLINT_TESTS_DISABLE = missing-module-docstring,missing-class-docstring,missing-function-docstring,unbalanced-tuple-unpacking,import-outside-toplevel,redefined-outer-name
 
-.PHONY: install format lint test check model up smoke down
+.PHONY: install hooks format lint test check model up smoke down
 
 install:
 	uv sync --locked
 	uv sync --locked --project webapp
 
+hooks:
+	uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
+
 format:
-	$(WEBAPP) ruff format webapp scripts
-	$(WEBAPP) ruff check --fix webapp scripts
+	$(WEBAPP) ruff format .
+	$(WEBAPP) ruff check --fix .
 
 lint:
-	$(WEBAPP) ruff format --check webapp scripts
-	$(WEBAPP) ruff check webapp scripts
-	$(WEBAPP) pylint --rcfile webapp/pyproject.toml webapp/src scripts
-	$(WEBAPP) pylint --rcfile webapp/pyproject.toml webapp/tests --disable=$(PYLINT_TESTS_DISABLE)
+	uv run pre-commit run --all-files --show-diff-on-failure
 
 test:
 	cd webapp && uv run pytest

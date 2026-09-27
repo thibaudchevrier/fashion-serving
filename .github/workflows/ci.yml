@@ -28,14 +28,14 @@ jobs:
           --rev-range ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
 
   quality:
-    name: Lint (ruff, pylint)
+    name: Lint (pre-commit hooks = make lint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: uv sync --locked --project webapp
+      - run: make install
       - run: make lint
 
   tests:
@@ -50,16 +50,11 @@ jobs:
       - run: make test
 
   docker:
-    name: Dockerfiles (hadolint, webapp build)
+    # Dockerfiles are linted (hadolint) by the pre-commit hooks in the lint job.
+    name: Webapp image build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: inference/Dockerfile
-      - uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: webapp/Dockerfile
       - name: Build webapp image
         run: docker build -t fashion-webapp:ci webapp
 

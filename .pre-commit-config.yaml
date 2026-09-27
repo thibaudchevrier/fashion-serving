@@ -1,23 +1,58 @@
-# Install once: uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
-# Hooks use `uv run --no-sync`: during a partial commit pre-commit hides unstaged changes (e.g. a
-# uv.lock matching staged pyproject.toml edits); syncing would then try to rewrite the lockfile.
+# Single source of truth for code quality: `make lint` and the CI lint job both run
+# `pre-commit run --all-files`, so local hooks and CI check exactly the same things.
+# Install once: make hooks
+# Python tools run in the webapp environment (pylint needs its imports), with `uv run --no-sync`:
+# during a partial commit pre-commit hides unstaged changes (e.g. a uv.lock matching staged
+# pyproject.toml edits); syncing would then try to rewrite the lockfile.
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files  # large files belong in DVC, not git
+        args: [--maxkb=1024]
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker  # needs Docker running
   - repo: local
     hooks:
-      - id: commitizen
-        name: conventional commit message
-        entry: uv run --no-sync cz check --allow-abort --commit-msg-file
-        language: system
-        stages: [commit-msg]
       - id: ruff-format
         name: ruff format
         entry: uv run --no-sync --project webapp ruff format
         language: system
         types: [python]
-        files: ^(webapp|scripts)/
       - id: ruff-check
-        name: ruff check
+        name: ruff check (lint + numpy docstrings)
         entry: uv run --no-sync --project webapp ruff check --fix
         language: system
         types: [python]
-        files: ^(webapp|scripts)/
+      - id: pydoclint
+        name: pydoclint (documented parameters, returns, raises)
+        entry: uv run --no-sync --project webapp pydoclint
+        language: system
+        types: [python]
+        exclude: /tests/
+      - id: pylint
+        name: pylint
+        entry: uv run --no-sync --project webapp pylint --rcfile webapp/pyproject.toml
+        language: system
+        types: [python]
+        exclude: /tests/
+      - id: pylint-tests
+        name: pylint (tests)
+        entry: >-
+          uv run --no-sync --project webapp pylint --rcfile webapp/pyproject.toml
+          --disable=redefined-outer-name
+        language: system
+        types: [python]
+        files: /tests/
+      - id: commitizen
+        name: conventional commit message
+        entry: uv run --no-sync cz check --allow-abort --commit-msg-file
+        language: system
+        stages: [commit-msg]
