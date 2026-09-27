@@ -3,13 +3,13 @@
 Local deployment of the fashion segmentation model: upload a photo, see the detected clothes.
 
 The model is trained and packaged in
-[maskrcnn-train](https://github.com/thibaudchevrier/maskrcnn-train). This repository only
+[fashion-seg-train](https://github.com/thibaudchevrier/fashion-seg-train). This repository only
 **imports a pinned version of it and serves it**; it knows nothing about how it was trained.
 
 ## How it fits together
 
 ```
- maskrcnn-train                     fashion-serving (this repo)
+ fashion-seg-train                     fashion-serving (this repo)
  ┌──────────────────────┐           ┌──────────────────────────────────────────────────────┐
  │ models/              │ dvc       │ models/fashion-maskrcnn  (pinned: rev_lock = commit) │
  │   fashion-maskrcnn   │ import ─► │        │ copied into the image                       │
@@ -24,13 +24,13 @@ The model is trained and packaged in
 
 | Layer | Role | Depends on the ML framework? |
 |-------|------|------------------------------|
-| **DVC** | Fetches the model folder, pinned to a maskrcnn-train commit | No |
+| **DVC** | Fetches the model folder, pinned to a fashion-seg-train commit | No |
 | **inference** | Installs the model's own `requirements.txt` and runs `mlflow models serve` | No |
 | **webapp** | Sends base64 images to `/invocations`, draws the returned masks | No, it only knows the JSON contract |
 
 The only coupling is the **response contract** in `contracts/prediction.schema.json`, a copy of
-the one in maskrcnn-train. A new model (for example PyTorch instead of TensorFlow) is a swap as long
-as maskrcnn-train packages it with the same contract: `dvc update`, then rebuild the inference image.
+the one in fashion-seg-train. A new model (for example PyTorch instead of TensorFlow) is a swap as long
+as fashion-seg-train packages it with the same contract: `dvc update`, then rebuild the inference image.
 
 ### What is in the repository
 
@@ -40,7 +40,7 @@ as maskrcnn-train packages it with the same contract: `dvc update`, then rebuild
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
 | `webapp/` | Flask app (uv project): `src/fashion_webapp/`, tests, Dockerfile |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
-| `contracts/prediction.schema.json` | Model response contract (keep in sync with maskrcnn-train) |
+| `contracts/prediction.schema.json` | Model response contract (keep in sync with fashion-seg-train) |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |
 
@@ -54,9 +54,9 @@ Requires [uv](https://docs.astral.sh/uv/) and Docker.
 make install
 ```
 
-**2. Give DVC access to maskrcnn-train's Google Drive remote.** DVC reads the remote from
-maskrcnn-train's git config, which doesn't include credentials. Create the git-ignored file
-`.dvc/maskrcnn-train.config.local` with the same OAuth client as in maskrcnn-train's
+**2. Give DVC access to fashion-seg-train's Google Drive remote.** DVC reads the remote from
+fashion-seg-train's git config, which doesn't include credentials. Create the git-ignored file
+`.dvc/fashion-seg-train.config.local` with the same OAuth client as in fashion-seg-train's
 `.dvc/config.local`:
 
 ```ini
@@ -110,12 +110,12 @@ Settings, as environment variables (see `compose.yaml`):
 
 ## Deploy a new model version
 
-When maskrcnn-train has merged a new model into `main`, meaning a new `dvc.lock` pushed to Drive:
+When fashion-seg-train has merged a new model into `main`, meaning a new `dvc.lock` pushed to Drive:
 
 ```bash
 uv run dvc update --rev main models/fashion-maskrcnn.dvc   # moves rev_lock to main's latest commit
 make up && make smoke                                      # rebuild the inference image, check it
-git commit -am "Deploy maskrcnn-train@<short-sha>"         # the pin is versioned: easy rollback
+git commit -am "Deploy fashion-seg-train@<short-sha>"         # the pin is versioned: easy rollback
 ```
 
 To roll back, revert that commit, then `make model` and `make up`.
@@ -144,6 +144,6 @@ they run without the model or Docker.
 | **End-to-end** | Pulls the pinned model, `docker compose up`, `make smoke` |
 
 The **End-to-end** job needs Drive access and is skipped until the repository secret
-`GDRIVE_CREDENTIALS_DATA` is set. It uses the same service account JSON key as maskrcnn-train's CI:
+`GDRIVE_CREDENTIALS_DATA` is set. It uses the same service account JSON key as fashion-seg-train's CI:
 create it and share the Drive folder with it as described in that repo's README, then add the key
 here under **Settings → Secrets and variables → Actions**.

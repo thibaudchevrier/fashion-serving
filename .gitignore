@@ -1,5 +1,5 @@
-# Credentials for maskrcnn-train's Google Drive remote (see README)
-/.dvc/maskrcnn-train.config.local
+# Credentials for fashion-seg-train's Google Drive remote (see README)
+/.dvc/fashion-seg-train.config.local
 
 # Python
 .venv/
