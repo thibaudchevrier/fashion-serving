@@ -1,0 +1,28 @@
+# Local deployment: inference (MLflow model server) + webapp (upload UI).
+# Prerequisite: `uv run dvc pull` so models/fashion-maskrcnn exists (see README).
+services:
+  inference:
+    build:
+      context: .
+      dockerfile: inference/Dockerfile
+    ports:
+      - "5001:5000" # host 5000 is taken by AirPlay on macOS
+    restart: unless-stopped
+
+  webapp:
+    build: webapp
+    ports:
+      - "8000:8000"
+    environment:
+      INFERENCE_URL: http://inference:5000
+      SECRET_KEY: ${SECRET_KEY:-dev-only-change-me}
+      MIN_SCORE: ${MIN_SCORE:-0.7}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      inference:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  uploads:
