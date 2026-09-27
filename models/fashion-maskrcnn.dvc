@@ -1,15 +1,15 @@
-md5: 9f645ef4aa9727c24ae69a80779feba2
+md5: 8e9340c26a7136a7308a14c38dfdbfde
 frozen: true
 deps:
 - path: models/fashion-maskrcnn
   repo:
     url: https://github.com/thibaudchevrier/maskrcnn-train.git
-    rev: feat/uv-mlflow-legacy-packaging
-    rev_lock: c091b98d6d5072901d840b9fafc8105ac69b2f5a
+    rev: main
+    rev_lock: 6c339858bdcd019cb05dad78f300afbf1dcf512e
     config: .dvc/maskrcnn-train.config.local
 outs:
-- md5: ff7fdfef693b5e5446a26782506e5ca6.dir
-  size: 266078847
+- md5: 0c62b94447f12ffd62cf8f7e8f96a97d.dir
+  size: 266093773
   nfiles: 25
   hash: md5
   path: fashion-maskrcnn
