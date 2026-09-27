@@ -1,15 +1,15 @@
-md5: d50db079751b036e7a20d6a9678834fb
+md5: 9884b865efc7c399d694ae84c49e47e0
 frozen: true
 deps:
 - path: models/fashion-maskrcnn
   repo:
     url: https://github.com/thibaudchevrier/fashion-seg-train.git
     rev: main
-    rev_lock: 722b930e7dedbae183e863a91c4b44246e908ef6
+    rev_lock: 899ba923d7e39c61b1ac841c41a7c6ba9f35813e
     config: .dvc/fashion-seg-train.config.local
 outs:
-- md5: c2a62d0fc72cc9699170affb8bed731a.dir
-  size: 266103113
-  nfiles: 28
+- md5: 0366e57b4864c390b548206536557d2d.dir
+  size: 266103174
+  nfiles: 24
   hash: md5
   path: fashion-maskrcnn
