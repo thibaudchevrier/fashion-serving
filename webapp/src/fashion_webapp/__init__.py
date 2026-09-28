@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from fashion_seg_contract.request import DEFAULT_MIN_SCORE
 from flask import (
     Flask,
     abort,
@@ -47,7 +48,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev-only-change-me"),
         INFERENCE_URL=os.environ.get("INFERENCE_URL", "http://localhost:5001"),
         UPLOAD_DIR=os.environ.get("UPLOAD_DIR", "uploads"),
-        MIN_SCORE=float(os.environ.get("MIN_SCORE", "0.7")),
+        MIN_SCORE=float(os.environ.get("MIN_SCORE", DEFAULT_MIN_SCORE)),
         MAX_IMAGE_SIDE=int(os.environ.get("MAX_IMAGE_SIDE", "800")),
         MAX_CONTENT_LENGTH=20 * 1024 * 1024,
     )

@@ -117,13 +117,13 @@ wheels = [
 
 [[package]]
 name = "fashion-seg-contract"
-version = "0.1.0"
-source = { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" }
+version = "0.2.0"
+source = { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.2.0/fashion_seg_contract-0.2.0-py3-none-any.whl" }
 dependencies = [
     { name = "numpy" },
 ]
 wheels = [
-    { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl", hash = "sha256:ff4b470e9bc105639d3d6715b6a03198ed910f94a4d088532ae95aac4461aade" },
+    { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.2.0/fashion_seg_contract-0.2.0-py3-none-any.whl", hash = "sha256:e9eae64a1c7e9d1c73b023adb92690649c93bbb7336518c003bbfa22b8bafe8a" },
 ]
 
 [package.optional-dependencies]
@@ -162,7 +162,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fashion-seg-contract", url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" },
+    { name = "fashion-seg-contract", url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.2.0/fashion_seg_contract-0.2.0-py3-none-any.whl" },
     { name = "flask", specifier = ">=3.1.3" },
     { name = "gunicorn", specifier = ">=26.2.0" },
     { name = "numpy", specifier = ">=2.5.3" },
@@ -172,7 +172,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "fashion-seg-contract", extras = ["validate"], url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" },
+    { name = "fashion-seg-contract", extras = ["validate"], url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.2.0/fashion_seg_contract-0.2.0-py3-none-any.whl" },
     { name = "pydoclint", specifier = ">=0.10.0" },
     { name = "pylint", specifier = ">=4.0.9" },
     { name = "pytest", specifier = ">=9.1.1" },

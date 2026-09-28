@@ -1,8 +1,7 @@
 """HTTP client for the MLflow inference service (``mlflow models serve``)."""
 
-import base64
-
 import requests
+from fashion_seg_contract import request
 from fashion_seg_contract.schema import Prediction
 
 
@@ -55,13 +54,11 @@ class InferenceClient:
         InferenceError
             If the service is unreachable, answers with an error status or an unexpected body.
         """
-        payload = {
-            "dataframe_records": [{"image": base64.b64encode(image_bytes).decode("ascii")}],
-            "params": {"min_score": min_score},
-        }
         try:
             response = requests.post(
-                f"{self.base_url}/invocations", json=payload, timeout=self.timeout
+                f"{self.base_url}/invocations",
+                json=request.build([image_bytes], min_score),
+                timeout=self.timeout,
             )
             response.raise_for_status()
             return response.json()["predictions"][0]

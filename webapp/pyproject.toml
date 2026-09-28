@@ -44,4 +44,4 @@ max-line-length = 100
 
 [tool.uv.sources]
 # Released wheel, referenced by URL like a package from a registry (GitHub Releases).
-fashion-seg-contract = { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.1.0/fashion_seg_contract-0.1.0-py3-none-any.whl" }
+fashion-seg-contract = { url = "https://github.com/thibaudchevrier/fashion-seg-contract/releases/download/v0.2.0/fashion_seg_contract-0.2.0-py3-none-any.whl" }
