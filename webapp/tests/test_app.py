@@ -1,3 +1,5 @@
+"""Webapp tests, with a fake inference client that honours the response contract."""
+
 import io
 
 import numpy as np
@@ -11,17 +13,22 @@ from fashion_webapp.rendering import render_overlay
 
 
 def _jpeg(width=120, height=80, color=(200, 180, 160)) -> bytes:
+    """Encode a plain-colored JPEG of the given size."""
     buffer = io.BytesIO()
     Image.new("RGB", (width, height), color).save(buffer, format="JPEG")
     return buffer.getvalue()
 
 
 class FakeClient:
+    """Stand-in for ``InferenceClient``: one fixed dress per image, or failures on demand."""
+
     def __init__(self, fail=False):
+        """Start healthy (or failing) with no recorded calls."""
         self.fail = fail
         self.calls = []
 
     def predict(self, image_bytes, min_score):
+        """Return a contract-valid prediction sized to the image, or raise if failing."""
         self.calls.append(min_score)
         if self.fail:
             raise InferenceError("down")
@@ -49,7 +56,10 @@ class FakeClient:
 
 @pytest.fixture
 def make_client(tmp_path):
+    """Build a Flask test client around a given fake inference client."""
+
     def _make(fake):
+        """Create the app with uploads in a temporary directory."""
         app = create_app({"TESTING": True, "UPLOAD_DIR": tmp_path, "INFERENCE_CLIENT": fake})
         return app.test_client()
 
@@ -57,6 +67,7 @@ def make_client(tmp_path):
 
 
 def _upload(client, data=None, name="photo.jpg"):
+    """Post an upload form and follow the redirect."""
     return client.post(
         "/upload",
         data={"file": (io.BytesIO(data or _jpeg()), name)},
@@ -66,6 +77,7 @@ def _upload(client, data=None, name="photo.jpg"):
 
 
 def test_upload_predicts_and_renders_overlay(make_client, tmp_path):
+    """An upload is analysed and its overlay is served at the image size."""
     client = make_client(FakeClient())
     page = _upload(client)
     assert page.status_code == 200
@@ -79,6 +91,7 @@ def test_upload_predicts_and_renders_overlay(make_client, tmp_path):
 
 
 def test_upload_is_downscaled_before_inference(make_client, tmp_path):
+    """Large uploads are downscaled to MAX_IMAGE_SIDE before inference."""
     client = make_client(FakeClient())
     _upload(client, _jpeg(width=3000, height=1500))
     [path] = tmp_path.glob("*.jpg")
@@ -87,6 +100,7 @@ def test_upload_is_downscaled_before_inference(make_client, tmp_path):
 
 
 def test_inference_failure_keeps_image_and_allows_retry(make_client, tmp_path):
+    """When the model is down the image is kept and can be analysed later."""
     fake = FakeClient(fail=True)
     client = make_client(fake)
     page = _upload(client)
@@ -100,6 +114,7 @@ def test_inference_failure_keeps_image_and_allows_retry(make_client, tmp_path):
 
 
 def test_rejects_non_images(make_client, tmp_path):
+    """Unreadable files and unsupported extensions are rejected and nothing is stored."""
     client = make_client(FakeClient())
     page = _upload(client, b"not an image", name="notes.jpg")
     assert b"Could not read" in page.data
@@ -109,6 +124,7 @@ def test_rejects_non_images(make_client, tmp_path):
 
 
 def test_delete_and_invalid_ids(make_client, tmp_path):
+    """Images can be deleted; malformed ids are not found."""
     client = make_client(FakeClient())
     _upload(client)
     [image_id] = [p.stem for p in tmp_path.glob("*.jpg")]
@@ -118,5 +134,6 @@ def test_delete_and_invalid_ids(make_client, tmp_path):
 
 
 def test_render_overlay_rejects_size_mismatch():
+    """Predictions made on another image size are refused."""
     with pytest.raises(ValueError):
         render_overlay(Image.new("RGB", (10, 10)), {"height": 5, "width": 5, "instances": []})

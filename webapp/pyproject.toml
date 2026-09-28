@@ -19,18 +19,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fashion_webapp"]
 
-[tool.ruff]
-line-length = 100
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
-
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Docstring examples are tests too.
+testpaths = ["src", "tests"]
+addopts = "--doctest-modules"
 
 [dependency-groups]
 dev = [
     "fashion-seg-contract[validate]",
+    "pydoclint>=0.10.0",
     "pylint>=4.0.9",
     "pytest>=9.1.1",
     "ruff>=0.16.9",

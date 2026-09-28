@@ -1,9 +1,9 @@
 """HTTP client for the MLflow inference service (``mlflow models serve``)."""
 
 import base64
-from typing import Any
 
 import requests
+from fashion_seg_contract.schema import Prediction
 
 
 class InferenceError(RuntimeError):
@@ -11,14 +11,50 @@ class InferenceError(RuntimeError):
 
 
 class InferenceClient:
-    """Calls ``POST /invocations`` with one base64 image per request."""
+    """Client of ``POST /invocations``, one base64 image per request.
+
+    Parameters
+    ----------
+    base_url : str
+        URL of the inference service, e.g. ``http://inference:5000``.
+    timeout : float
+        Request timeout in seconds. By default 60.
+
+    Attributes
+    ----------
+    base_url : str
+        URL of the inference service, without trailing slash.
+    timeout : float
+        Request timeout in seconds.
+    """
+
+    base_url: str
+    timeout: float
 
     def __init__(self, base_url: str, timeout: float = 60.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def predict(self, image_bytes: bytes, min_score: float) -> dict[str, Any]:
-        """Return ``{"height", "width", "instances": [...]}`` for one encoded image."""
+    def predict(self, image_bytes: bytes, min_score: float) -> Prediction:
+        """Segment the garments in one encoded image.
+
+        Parameters
+        ----------
+        image_bytes : bytes
+            Encoded image (JPEG or PNG).
+        min_score : float
+            Minimum detection confidence to return.
+
+        Returns
+        -------
+        Prediction
+            The model's response for the image (see ``fashion_seg_contract.schema``).
+
+        Raises
+        ------
+        InferenceError
+            If the service is unreachable, answers with an error status or an unexpected body.
+        """
         payload = {
             "dataframe_records": [{"image": base64.b64encode(image_bytes).decode("ascii")}],
             "params": {"min_score": min_score},

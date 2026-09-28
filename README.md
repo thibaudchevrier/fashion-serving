@@ -125,12 +125,18 @@ To roll back, revert that commit, then `make model` and `make up`.
 ## Development
 
 ```bash
-uv run pre-commit install --hook-type pre-commit --hook-type commit-msg   # once
+make install      # both environments
+make hooks        # once: pre-commit and commit-msg git hooks
 make format       # ruff format + autofix
-make check        # ruff, pylint, pytest
+make check        # lint (all pre-commit hooks, exactly what CI runs) + tests (incl. doctests)
 cd webapp && INFERENCE_URL=http://localhost:5001 \
   uv run flask --app "fashion_webapp:create_app()" run --debug     # webapp with hot reload
 ```
+
+Code quality is defined once, in `.pre-commit-config.yaml`: ruff (format, lint, numpy docstrings),
+pydoclint (every parameter, return and exception documented), pylint (10/10), hadolint for the
+Dockerfiles and hygiene checks. The git hooks, `make lint` and CI all run it. Conventions for
+contributors (and for Claude Code) are in [`CLAUDE.md`](CLAUDE.md).
 
 The webapp tests use a fake inference client, which is itself validated against the contract, so
 they run without the model or Docker.
@@ -153,9 +159,9 @@ tags `vX.Y.Z` and publishes a GitHub Release. Other types never release, includi
 
 | Job | What it checks |
 |-----|----------------|
-| **Lint** | `ruff format --check`, `ruff check`, `pylint` (same as `make lint`) |
+| **Lint** | All pre-commit hooks (`make lint`): ruff, pydoclint, pylint, hadolint, hygiene |
 | **Webapp and contract tests** | `make test` |
-| **Dockerfiles** | `hadolint` on both Dockerfiles, webapp image build |
+| **Webapp image** | Builds the webapp image |
 | **End-to-end** | Pulls the pinned model, `docker compose up`, `make smoke` |
 
 The **End-to-end** job needs Drive access and is skipped until the repository secret
