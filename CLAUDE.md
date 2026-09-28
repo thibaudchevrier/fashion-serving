@@ -4,16 +4,18 @@ Guidance for working in this repository. Read it before changing anything.
 
 ## What this repo is
 
-`fashion-serving`: local deployment of the fashion segmentation model. It **imports a pinned model**
-packaged by [fashion-seg-train](https://github.com/thibaudchevrier/fashion-seg-train) and serves it;
-it knows nothing about how the model was trained.
+`fashion-serving`: deployment of the fashion segmentation model. It **imports a pinned model**
+packaged by [fashion-seg-train](https://github.com/thibaudchevrier/fashion-seg-train), serves it,
+and publishes each release as Docker images on ghcr.io; it knows nothing about how the model was
+trained.
 
 | Path | Content |
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | `dvc import` pointer: source repo, `rev` and `rev_lock` (the deployed model version) |
 | `inference/Dockerfile` | `mlflow models serve` on the model; installs the model's own `requirements.txt` |
 | `webapp/` | Flask app (own uv project, Python 3.12): upload, call `/invocations`, draw masks |
-| `compose.yaml` | `inference` (:5001) + `webapp` (:8000) |
+| `compose.yaml` | `inference` (:5001) + `webapp` (:8000): built from source (`make up`) or pulled from ghcr.io (`make deploy TAG=...`) |
+| `.github/workflows/release.yml` | Release: version bump, changelog, tag, GitHub Release, then both images pushed to `ghcr.io/thibaudchevrier/fashion-serving/{inference,webapp}` |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 
 Two uv environments: the repo root (tooling: DVC, pre-commit, commitizen) and `webapp/` (the app,
@@ -21,14 +23,21 @@ its tests, ruff/pylint/pydoclint). `make install` syncs both.
 
 ### Rules specific to this repo
 
-- **The only coupling to the model is the response contract** (`fashion-seg-contract`). Never
-  import training code or ML frameworks in the webapp; decode masks with
-  `fashion_seg_contract.rle`, type responses with `fashion_seg_contract.schema.Prediction`.
+- **The only coupling to the model is the contract** (`fashion-seg-contract`). Never import
+  training code or ML frameworks in the webapp; build requests with `fashion_seg_contract.request`,
+  decode masks with `fashion_seg_contract.rle`, type responses with
+  `fashion_seg_contract.schema.Prediction`.
 - The webapp's fake inference client must return contract-valid responses (`schema.validate`),
   otherwise its tests prove nothing about the real model.
 - **Deploying a model** is a commit of the pin:
   `uv run dvc update --rev main models/fashion-maskrcnn.dvc`, then `make up && make smoke`, then
-  `git commit -m "build(model): deploy fashion-seg-train@<sha>"`. Roll back by reverting it.
+  `git commit -m "feat(model): deploy fashion-seg-train@<sha> (model vN)"` for a model that
+  predicts differently, `fix(model): ...` for a re-packaging or a rollback. Both release a new
+  version, hence new images: the image version identifies the model it serves (also in its
+  `io.github.thibaudchevrier.model.*` labels). Roll back by reverting the commit as `fix(model)`.
+- **Images** are only published by the release workflow, from the release tag: `X.Y.Z`, `X.Y`,
+  `latest`, `sha-<commit>`, `linux/amd64`. Never push images by hand. The inference image bakes
+  the model in: its build needs the `GDRIVE_CREDENTIALS_DATA` secret.
 - Never commit `models/fashion-maskrcnn/` (DVC output) or `.dvc/fashion-seg-train.config.local`
   (Google Drive credentials).
 - Host port 5000 is taken by AirPlay on macOS: the inference service is published on 5001.
@@ -46,6 +55,7 @@ make model     # dvc pull: fetch the pinned model
 make up        # docker compose up --build --wait
 make smoke     # end-to-end check of the running stack
 make down      # stop the stack
+make deploy TAG=X.Y.Z   # run released images from ghcr.io (no build, no model pull)
 ```
 
 ## Standards
@@ -134,7 +144,8 @@ def decode(rle: str, height: int, width: int = 1) -> np.ndarray:
   `print` in library code, error messages that say what to do.
 - Keep functions small enough for pylint's limits; split them rather than raising the limits.
 - No duplicated code across repositories: shared code goes in a released package
-  (fashion-seg-contract for the model's response, maskrcnn-matterport for Matterport code).
+  (fashion-seg-contract for the model's request and response, maskrcnn-matterport for Matterport
+  code).
 
 ### Tests
 

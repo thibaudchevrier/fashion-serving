@@ -1,7 +1,9 @@
-# Local deployment: inference (MLflow model server) + webapp (upload UI).
-# Prerequisite: `uv run dvc pull` so models/fashion-maskrcnn exists (see README).
+# Inference (MLflow model server) + webapp (upload UI).
+# - From source (development): `make model && make up` builds both images locally.
+# - Released images (deployment): `make deploy TAG=X.Y.Z` pulls them from ghcr.io, no build.
 services:
   inference:
+    image: ghcr.io/thibaudchevrier/fashion-serving/inference:${TAG:-latest}
     build:
       context: .
       dockerfile: inference/Dockerfile
@@ -10,13 +12,14 @@ services:
     restart: unless-stopped
 
   webapp:
+    image: ghcr.io/thibaudchevrier/fashion-serving/webapp:${TAG:-latest}
     build: webapp
     ports:
       - "8000:8000"
     environment:
       INFERENCE_URL: http://inference:5000
       SECRET_KEY: ${SECRET_KEY:-dev-only-change-me}
-      MIN_SCORE: ${MIN_SCORE:-0.7}
+      MIN_SCORE: # optional; the contract's default (0.7) when unset
     volumes:
       - uploads:/data/uploads
     depends_on:

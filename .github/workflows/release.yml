@@ -3,7 +3,8 @@ name: Release
 # On every push to main, commitizen reads the Conventional Commits since the last tag:
 # feat -> minor, fix/perf/refactor -> patch (breaking changes -> minor while < 1.0), anything else -> no
 # release. When there is a bump it updates pyproject.toml, uv.lock and CHANGELOG.md, commits,
-# tags vX.Y.Z, then publishes a GitHub Release with the changelog entry.
+# tags vX.Y.Z, then publishes a GitHub Release with the changelog entry, and the Docker images of
+# that version to the GitHub Container Registry (images job below).
 
 on:
   push:
@@ -11,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  packages: write   # push the images to ghcr.io
 
 concurrency:
   group: release
@@ -24,6 +26,9 @@ jobs:
     # The bump commit pushed below must not start another release.
     if: ${{ !startsWith(github.event.head_commit.message, 'bump:') }}
     runs-on: ubuntu-latest
+    outputs:
+      released: ${{ steps.bump.outputs.released }}
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -58,3 +63,77 @@ jobs:
         run: |
           gh release create "v${{ steps.bump.outputs.version }}" \
             --title "v${{ steps.bump.outputs.version }}" --notes-file release-notes.md
+
+  # Tags pushed with GITHUB_TOKEN start no workflow, so the images are built here, from the tag.
+  # Tags: X.Y.Z, X.Y, latest and sha-<commit>; labels: the version and the served model.
+  images:
+    name: Image (${{ matrix.image.name }})
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: webapp, context: webapp, file: webapp/Dockerfile, model: false }
+          - { name: inference, context: ., file: inference/Dockerfile, model: true }
+    env:
+      # Service account JSON key, read by DVC's Google Drive remote (inference image only).
+      GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.release.outputs.version }}
+      - name: The inference image needs the model from Google Drive
+        if: matrix.image.model && env.GDRIVE_CREDENTIALS_DATA == ''
+        run: |
+          echo "::error::GDRIVE_CREDENTIALS_DATA is not set: cannot fetch the model (see README)."
+          exit 1
+      - uses: astral-sh/setup-uv@v6
+        if: matrix.image.model
+      - name: Fetch the pinned model
+        if: matrix.image.model
+        run: |
+          cat > .dvc/fashion-seg-train.config.local <<'CFG'
+          ['remote "myremote"']
+              gdrive_use_service_account = true
+          CFG
+          uv sync --locked
+          make model
+          version="$(jq -r .registered_version models/fashion-maskrcnn/provenance.json)"
+          source="$(grep rev_lock models/fashion-maskrcnn.dvc | awk '{print $2}')"
+          {
+            echo "labels<<LABELS"
+            echo "io.github.thibaudchevrier.model.name=fashion-maskrcnn"
+            echo "io.github.thibaudchevrier.model.version=$version"
+            echo "io.github.thibaudchevrier.model.source=fashion-seg-train@$source"
+            echo "LABELS"
+          } >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.image.name }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.release.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release.outputs.version }}
+            type=raw,value=latest
+            type=sha
+          labels: |
+            org.opencontainers.image.title=fashion-serving-${{ matrix.image.name }}
+            ${{ env.labels }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.file }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
