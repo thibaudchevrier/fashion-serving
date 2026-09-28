@@ -42,7 +42,7 @@ inference image.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | Import pointer: source repo, `rev` (branch/tag) and `rev_lock` (exact commit) |
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
-| `webapp/` | Flask app (uv project): `src/fashion_webapp/`, tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
+| `webapp/` | Flask app (uv project): `src/fashion_webapp/` (use cases in `service.py`, adapters for the model and the storage, routes in `web.py`, wiring in `create_app`), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |

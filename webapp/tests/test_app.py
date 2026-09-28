@@ -1,4 +1,4 @@
-"""Webapp tests, with a fake inference client that honours the response contract."""
+"""Web layer tests (Flask test client), with a fake model that honours the contract."""
 
 import io
 
@@ -8,8 +8,8 @@ from fashion_seg_contract import rle, schema
 from PIL import Image
 
 from fashion_webapp import create_app
-from fashion_webapp.inference import InferenceError
 from fashion_webapp.rendering import render_overlay
+from fashion_webapp.service import InferenceUnavailable
 
 
 def _jpeg(width=120, height=80, color=(200, 180, 160)) -> bytes:
@@ -27,12 +27,12 @@ class FakeClient:
         self.fail = fail
         self.calls = []
 
-    def predict(self, image_bytes, min_score):
+    def predict(self, image, min_score):
         """Return a contract-valid prediction sized to the image, or raise if failing."""
         self.calls.append(min_score)
         if self.fail:
-            raise InferenceError("down")
-        with Image.open(io.BytesIO(image_bytes)) as img:
+            raise InferenceUnavailable("down")
+        with Image.open(io.BytesIO(image)) as img:
             width, height = img.size
         mask = np.zeros((height, width), dtype=bool)
         mask[10:30, 20:60] = True
@@ -136,4 +136,4 @@ def test_delete_and_invalid_ids(make_client, tmp_path):
 def test_render_overlay_rejects_size_mismatch():
     """Predictions made on another image size are refused."""
     with pytest.raises(ValueError):
-        render_overlay(Image.new("RGB", (10, 10)), {"height": 5, "width": 5, "instances": []})
+        render_overlay(_jpeg(10, 10), {"height": 5, "width": 5, "instances": []})
