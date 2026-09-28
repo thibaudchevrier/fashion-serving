@@ -27,7 +27,7 @@ trained.
 | `inference.py` | Adapter: `InferenceClient`, the model over HTTP (an `Inference`) | `service` |
 | `storage.py` | Adapter: `FileImageStore`, images and predictions on disk (an `ImageStore`) | `service` |
 | `web.py` | Flask routes: translate requests into use cases, outcomes into pages and messages | `service`, `rendering` |
-| `__init__.py` | `create_app`, the composition root: settings, adapters, routes | all |
+| `app.py` | `create_app`, the composition root: settings, adapters, routes (gunicorn's `fashion_webapp.app:create_app()`) | all |
 
 Adapters depend on the use cases, never the reverse; they raise the service's errors
 (`InferenceUnavailable`, `UnreadableImage`), not their library's. `webapp/tests/test_architecture.py`

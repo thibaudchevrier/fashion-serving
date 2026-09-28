@@ -158,7 +158,7 @@ make hooks        # once: pre-commit and commit-msg git hooks
 make format       # ruff format + autofix
 make check        # lint (all pre-commit hooks, exactly what CI runs) + tests (incl. doctests)
 cd webapp && INFERENCE_URL=http://localhost:5001 \
-  uv run flask --app "fashion_webapp:create_app()" run --debug     # webapp with hot reload
+  uv run flask --app "fashion_webapp.app:create_app()" run --debug     # webapp with hot reload
 ```
 
 Code quality is defined once, in `.pre-commit-config.yaml`: ruff (format, lint, numpy docstrings),

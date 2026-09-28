@@ -15,14 +15,14 @@ FORBIDDEN = {
     "storage": {"flask", "requests"},
 }
 # Which of the app's own modules each may import: adapters depend on the use cases, never the
-# reverse; only the composition root (__init__) and the web layer see the adapters.
+# reverse; only the composition root (app) sees the adapters.
 ALLOWED = {
     "service": {"rendering"},
     "rendering": set(),
     "inference": {"service"},
     "storage": {"service"},
     "web": {"service", "rendering"},
-    "__init__": {"inference", "service", "storage", "web"},
+    "app": {"inference", "service", "storage", "web"},
 }
 
 

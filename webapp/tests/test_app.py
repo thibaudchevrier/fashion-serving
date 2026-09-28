@@ -7,7 +7,7 @@ import pytest
 from fashion_seg_contract import rle, schema
 from PIL import Image
 
-from fashion_webapp import create_app
+from fashion_webapp.app import create_app
 from fashion_webapp.rendering import render_overlay
 from fashion_webapp.service import InferenceUnavailable
 
