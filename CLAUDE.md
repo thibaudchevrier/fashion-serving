@@ -15,7 +15,7 @@ trained.
 | `inference/Dockerfile` | `mlflow models serve` on the model; installs the model's own `requirements.txt` |
 | `webapp/` | Flask app (own uv project, Python 3.12): upload, call `/invocations`, draw masks (see below) |
 | `compose.yaml` | `inference` (:5001) + `webapp` (:8000): built from source (`make up`) or pulled from ghcr.io (`make deploy TAG=...`) |
-| `.github/workflows/release.yml` | Release: version bump, changelog, tag, GitHub Release, then both images pushed to `ghcr.io/thibaudchevrier/fashion-serving/{inference,webapp}` |
+| `.github/workflows/release.yml` | Release: version bump, changelog, tag, GitHub Release, then both images pushed to `ghcr.io/thibaudchevrier/fashion-serving-{inference,webapp}` (amd64 + arm64) |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 
 ### The webapp: use cases behind ports

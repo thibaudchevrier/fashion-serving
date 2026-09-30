@@ -3,7 +3,7 @@
 # - Released images (deployment): `make deploy TAG=X.Y.Z` pulls them from ghcr.io, no build.
 services:
   inference:
-    image: ghcr.io/thibaudchevrier/fashion-serving/inference:${TAG:-latest}
+    image: ghcr.io/thibaudchevrier/fashion-serving-inference:${TAG:-latest}
     build:
       context: .
       dockerfile: inference/Dockerfile
@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   webapp:
-    image: ghcr.io/thibaudchevrier/fashion-serving/webapp:${TAG:-latest}
+    image: ghcr.io/thibaudchevrier/fashion-serving-webapp:${TAG:-latest}
     build: webapp
     ports:
       - "8000:8000"
