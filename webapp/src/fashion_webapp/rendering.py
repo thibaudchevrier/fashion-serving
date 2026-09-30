@@ -34,13 +34,13 @@ def class_color(class_id: int) -> tuple[int, int, int]:
     return int(r * 255), int(g * 255), int(b * 255)
 
 
-def render_overlay(image: Image.Image, predictions: Prediction) -> bytes:
+def render_overlay(image: bytes, predictions: Prediction) -> bytes:
     """Draw every predicted instance (mask, box, label and score) on an image.
 
     Parameters
     ----------
-    image : Image.Image
-        The image the predictions were made on.
+    image : bytes
+        The encoded image the predictions were made on.
     predictions : Prediction
         The model's response for that image.
 
@@ -54,7 +54,8 @@ def render_overlay(image: Image.Image, predictions: Prediction) -> bytes:
     ValueError
         If the predictions were made on an image of a different size.
     """
-    rgb = np.asarray(image.convert("RGB"))
+    with Image.open(io.BytesIO(image)) as img:
+        rgb = np.asarray(img.convert("RGB"))
     if rgb.shape[:2] != (predictions["height"], predictions["width"]):
         raise ValueError("Predictions were made on an image of a different size")
 

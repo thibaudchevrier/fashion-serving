@@ -1,6 +1,7 @@
 # fashion-serving
 
-Local deployment of the fashion segmentation model: upload a photo, see the detected clothes.
+Deployment of the fashion segmentation model: upload a photo, see the detected clothes. Each
+release is published as Docker images on ghcr.io.
 
 The model is trained and packaged in
 [fashion-seg-train](https://github.com/thibaudchevrier/fashion-seg-train). This repository only
@@ -28,7 +29,7 @@ The model is trained and packaged in
 | **inference** | Installs the model's own `requirements.txt` and runs `mlflow models serve` | No |
 | **webapp** | Sends base64 images to `/invocations`, draws the returned masks | No, it only knows the JSON contract |
 
-The only coupling is the **response contract**, a released package shared with fashion-seg-train:
+The only coupling is the **contract** (request and response), a released package shared with fashion-seg-train:
 [fashion-seg-contract](https://github.com/thibaudchevrier/fashion-seg-contract) (JSON Schema, RLE
 decoding, labels). The webapp decodes masks with it, and its tests and the smoke test validate
 responses with it. A new model (for example PyTorch instead of TensorFlow) is a swap as long as
@@ -41,7 +42,7 @@ inference image.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | Import pointer: source repo, `rev` (branch/tag) and `rev_lock` (exact commit) |
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
-| `webapp/` | Flask app (uv project): `src/fashion_webapp/`, tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
+| `webapp/` | Flask app (uv project): `src/fashion_webapp/` (use cases in `service.py`, adapters for the model and the storage, routes in `web.py`, wiring in `create_app`), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |
@@ -107,7 +108,8 @@ Settings, as environment variables (see `compose.yaml`):
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `MIN_SCORE` | `0.7` | Minimum detection confidence shown |
+| `MIN_SCORE` | the contract's (`0.7`) | Minimum detection confidence shown |
+| `TAG` | `latest` | Version of the released images `make deploy` runs |
 | `SECRET_KEY` | `dev-only-change-me` | Flask session key; set a real one outside your machine |
 
 ## Deploy a new model version
@@ -117,10 +119,36 @@ When fashion-seg-train has merged a new model into `main`, meaning a new `dvc.lo
 ```bash
 uv run dvc update --rev main models/fashion-maskrcnn.dvc   # moves rev_lock to main's latest commit
 make up && make smoke                                      # rebuild the inference image, check it
-git commit -am "build(model): deploy fashion-seg-train@<short-sha>"   # versioned pin: easy rollback
+git commit -am "feat(model): deploy fashion-seg-train@<short-sha> (model vN)"
 ```
 
-To roll back, revert that commit, then `make model` and `make up`.
+Use `feat(model)` for a model that predicts differently, `fix(model)` for a re-packaging. Both
+release a new version on merge, which publishes new images: each image version serves one model.
+To roll back, revert that commit (as `fix(model): roll back ...`); the release republishes the
+previous model under a new version.
+
+## Released images
+
+Every release publishes two images to the GitHub Container Registry, built from the release tag:
+
+| Image | Content |
+|-------|---------|
+| `ghcr.io/thibaudchevrier/fashion-serving/inference` | `mlflow models serve` with the pinned model baked in (~0.9 GB with TensorFlow) |
+| `ghcr.io/thibaudchevrier/fashion-serving/webapp` | The Flask app (gunicorn) |
+
+Tags: `X.Y.Z`, `X.Y`, `latest` and `sha-<commit>`, for `linux/amd64`. The inference image carries
+the model's name, registry version and source commit as labels:
+
+```bash
+docker inspect ghcr.io/thibaudchevrier/fashion-serving/inference:latest \
+  --format '{{ json .Config.Labels }}'
+```
+
+Run a release anywhere Docker runs, without the source or the model:
+
+```bash
+make deploy TAG=0.2.0     # docker compose pull + up, no build
+```
 
 ## Development
 
@@ -130,7 +158,7 @@ make hooks        # once: pre-commit and commit-msg git hooks
 make format       # ruff format + autofix
 make check        # lint (all pre-commit hooks, exactly what CI runs) + tests (incl. doctests)
 cd webapp && INFERENCE_URL=http://localhost:5001 \
-  uv run flask --app "fashion_webapp:create_app()" run --debug     # webapp with hot reload
+  uv run flask --app "fashion_webapp.app:create_app()" run --debug     # webapp with hot reload
 ```
 
 Code quality is defined once, in `.pre-commit-config.yaml`: ruff (format, lint, numpy docstrings),
@@ -144,14 +172,14 @@ they run without the model or Docker.
 ### Commits, versions and releases
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(webapp): ...`,
-`fix: ...`, `build(model): deploy ...`, `docs: ...`. They are checked by the `commit-msg` hook and on
+`fix: ...`, `feat(model): deploy ...`, `docs: ...`. They are checked by the `commit-msg` hook and on
 every PR by CI. `uv run cz commit` writes one interactively.
 
 Releases are automatic. On every merge to `main`, [commitizen](https://commitizen-tools.github.io/commitizen/)
 reads the commits since the last tag. A `feat` (minor), `fix`/`perf`/`refactor` (patch) or breaking change
 (minor while < 1.0) bumps the version in `pyproject.toml` and `uv.lock`, updates `CHANGELOG.md`,
-tags `vX.Y.Z` and publishes a GitHub Release. Other types never release, including
-`build(model)` deploys: the deployed model is identified by the pin in `models/fashion-maskrcnn.dvc`.
+tags `vX.Y.Z`, publishes a GitHub Release and pushes the images of that version (see
+[Released images](#released-images)). Other types never release.
 
 ## Continuous integration
 
@@ -164,7 +192,8 @@ tags `vX.Y.Z` and publishes a GitHub Release. Other types never release, includi
 | **Webapp image** | Builds the webapp image |
 | **End-to-end** | Pulls the pinned model, `docker compose up`, `make smoke` |
 
-The **End-to-end** job needs Drive access and is skipped until the repository secret
+The **End-to-end** job and the release's **inference image** need Drive access (to fetch the
+model): the first is skipped and the second fails until the repository secret
 `GDRIVE_CREDENTIALS_DATA` is set. It uses the same service account JSON key as fashion-seg-train's CI:
 create it and share the Drive folder with it as described in that repo's README, then add the key
 here under **Settings → Secrets and variables → Actions**.

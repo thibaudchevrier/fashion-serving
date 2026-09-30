@@ -7,7 +7,6 @@ Usage: uv run --project webapp python scripts/smoke_test.py [--inference URL] [-
 """
 
 import argparse
-import base64
 import io
 import re
 import sys
@@ -17,6 +16,8 @@ import numpy as np
 import requests
 from fashion_seg_contract import schema
 from PIL import Image
+
+from fashion_webapp.inference import InferenceClient
 
 
 def wait_until_up(url: str, timeout: float = 180) -> None:
@@ -65,16 +66,7 @@ def main() -> None:
     jpeg = sample_jpeg()
 
     wait_until_up(f"{args.inference}/ping")
-    response = requests.post(
-        f"{args.inference}/invocations",
-        json={
-            "dataframe_records": [{"image": base64.b64encode(jpeg).decode()}],
-            "params": {"min_score": 0.7},
-        },
-        timeout=120,
-    )
-    response.raise_for_status()
-    [prediction] = response.json()["predictions"]
+    prediction = InferenceClient(args.inference, timeout=120).predict(jpeg, min_score=0.7)
     schema.validate(prediction)
     print(f"OK inference: {len(prediction['instances'])} instance(s), response matches contract")
 
