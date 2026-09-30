@@ -42,7 +42,7 @@ inference image.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | Import pointer: source repo, `rev` (branch/tag) and `rev_lock` (exact commit) |
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
-| `webapp/` | Flask app (uv project): `src/fashion_webapp/`, tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
+| `webapp/` | Flask app (uv project): `src/fashion_webapp/` (use cases in `service.py`, adapters for the model and the storage, routes in `web.py`, wiring in `create_app`), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |
@@ -158,7 +158,7 @@ make hooks        # once: pre-commit and commit-msg git hooks
 make format       # ruff format + autofix
 make check        # lint (all pre-commit hooks, exactly what CI runs) + tests (incl. doctests)
 cd webapp && INFERENCE_URL=http://localhost:5001 \
-  uv run flask --app "fashion_webapp:create_app()" run --debug     # webapp with hot reload
+  uv run flask --app "fashion_webapp.app:create_app()" run --debug     # webapp with hot reload
 ```
 
 Code quality is defined once, in `.pre-commit-config.yaml`: ruff (format, lint, numpy docstrings),

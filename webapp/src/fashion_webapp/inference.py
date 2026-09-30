@@ -1,12 +1,13 @@
-"""HTTP client for the MLflow inference service (``mlflow models serve``)."""
+"""HTTP client for the MLflow inference service (``mlflow models serve``).
+
+Implements ``fashion_webapp.service.Inference``.
+"""
 
 import requests
 from fashion_seg_contract import request
 from fashion_seg_contract.schema import Prediction
 
-
-class InferenceError(RuntimeError):
-    """The inference service is unreachable or returned an unexpected response."""
+from fashion_webapp.service import InferenceUnavailable
 
 
 class InferenceClient:
@@ -34,12 +35,12 @@ class InferenceClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def predict(self, image_bytes: bytes, min_score: float) -> Prediction:
+    def predict(self, image: bytes, min_score: float) -> Prediction:
         """Segment the garments in one encoded image.
 
         Parameters
         ----------
-        image_bytes : bytes
+        image : bytes
             Encoded image (JPEG or PNG).
         min_score : float
             Minimum detection confidence to return.
@@ -51,16 +52,16 @@ class InferenceClient:
 
         Raises
         ------
-        InferenceError
+        InferenceUnavailable
             If the service is unreachable, answers with an error status or an unexpected body.
         """
         try:
             response = requests.post(
                 f"{self.base_url}/invocations",
-                json=request.build([image_bytes], min_score),
+                json=request.build([image], min_score),
                 timeout=self.timeout,
             )
             response.raise_for_status()
             return response.json()["predictions"][0]
         except (requests.RequestException, KeyError, IndexError, ValueError) as exc:
-            raise InferenceError(f"Inference service call failed: {exc}") from exc
+            raise InferenceUnavailable(f"Inference service call failed: {exc}") from exc

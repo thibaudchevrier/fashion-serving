@@ -17,4 +17,4 @@ RUN uv sync --frozen --no-dev --no-editable
 ENV UPLOAD_DIR=/data/uploads
 EXPOSE 8000
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", \
-     "fashion_webapp:create_app()"]
+     "fashion_webapp.app:create_app()"]

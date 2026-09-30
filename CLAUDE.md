@@ -13,10 +13,26 @@ trained.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | `dvc import` pointer: source repo, `rev` and `rev_lock` (the deployed model version) |
 | `inference/Dockerfile` | `mlflow models serve` on the model; installs the model's own `requirements.txt` |
-| `webapp/` | Flask app (own uv project, Python 3.12): upload, call `/invocations`, draw masks |
+| `webapp/` | Flask app (own uv project, Python 3.12): upload, call `/invocations`, draw masks (see below) |
 | `compose.yaml` | `inference` (:5001) + `webapp` (:8000): built from source (`make up`) or pulled from ghcr.io (`make deploy TAG=...`) |
 | `.github/workflows/release.yml` | Release: version bump, changelog, tag, GitHub Release, then both images pushed to `ghcr.io/thibaudchevrier/fashion-serving/{inference,webapp}` |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
+
+### The webapp: use cases behind ports
+
+| Module (`webapp/src/fashion_webapp/`) | Role | May import (from the app) |
+|--------|------|------|
+| `service.py` | **Use cases** (upload, analyse, overlay), the ports they drive (`Inference`, `ImageStore` Protocols), the `StoredImage` record and the errors. No Flask, no HTTP, no files | `rendering` |
+| `rendering.py` | Draws predictions on an image (pure) | nothing |
+| `inference.py` | Adapter: `InferenceClient`, the model over HTTP (an `Inference`) | `service` |
+| `storage.py` | Adapter: `FileImageStore`, images and predictions on disk (an `ImageStore`) | `service` |
+| `web.py` | Flask routes: translate requests into use cases, outcomes into pages and messages | `service`, `rendering` |
+| `app.py` | `create_app`, the composition root: settings, adapters, routes (gunicorn's `fashion_webapp.app:create_app()`) | all |
+
+Adapters depend on the use cases, never the reverse; they raise the service's errors
+(`InferenceUnavailable`, `UnreadableImage`), not their library's. `webapp/tests/test_architecture.py`
+enforces these rules; `test_service.py` tests the use cases with in-memory adapters, `test_app.py`
+the web layer with a fake model.
 
 Two uv environments: the repo root (tooling: DVC, pre-commit, commitizen) and `webapp/` (the app,
 its tests, ruff/pylint/pydoclint). `make install` syncs both.
