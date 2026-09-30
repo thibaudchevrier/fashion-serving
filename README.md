@@ -149,8 +149,13 @@ docker inspect ghcr.io/thibaudchevrier/fashion-serving-inference:latest \
 Run a release anywhere Docker runs, without the source or the model:
 
 ```bash
-make deploy TAG=0.2.0     # docker compose pull + up, no build
+make deploy TAG=0.3.0     # docker compose pull + up, no build
 ```
+
+The webapp image is built in two stages: uv builds the app's environment, and only that
+environment goes into a clean `python:3.12-slim` image (no uv, no pip), run by an unprivileged
+`app` user. Upgrading a deployment from 0.3.0 or earlier: its uploads volume belongs to root, so
+recreate it once with `docker compose down -v` (it only holds temporary uploads).
 
 ## Development
 
