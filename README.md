@@ -133,14 +133,16 @@ Every release publishes two images to the GitHub Container Registry, built from 
 
 | Image | Content |
 |-------|---------|
-| `ghcr.io/thibaudchevrier/fashion-serving/inference` | `mlflow models serve` with the pinned model baked in (~0.9 GB with TensorFlow) |
-| `ghcr.io/thibaudchevrier/fashion-serving/webapp` | The Flask app (gunicorn) |
+| `ghcr.io/thibaudchevrier/fashion-serving-inference` | `mlflow models serve` with the pinned model baked in (~0.7 GB compressed, PyTorch CPU) |
+| `ghcr.io/thibaudchevrier/fashion-serving-webapp` | The Flask app (gunicorn, ~0.1 GB compressed) |
 
-Tags: `X.Y.Z`, `X.Y`, `latest` and `sha-<commit>`, for `linux/amd64`. The inference image carries
+Tags: `X.Y.Z`, `X.Y`, `X`, `latest` and `sha-<commit>`, for `linux/amd64` and `linux/arm64`
+(Apple Silicon runs them natively). Releases up to 0.2.0 were published as
+`fashion-serving/{inference,webapp}`, for amd64 only. The inference image carries
 the model's name, registry version and source commit as labels:
 
 ```bash
-docker inspect ghcr.io/thibaudchevrier/fashion-serving/inference:latest \
+docker inspect ghcr.io/thibaudchevrier/fashion-serving-inference:latest \
   --format '{{ json .Config.Labels }}'
 ```
 
@@ -197,3 +199,8 @@ model): the first is skipped and the second fails until the repository secret
 `GDRIVE_CREDENTIALS_DATA` is set. It uses the same service account JSON key as fashion-seg-train's CI:
 create it and share the Drive folder with it as described in that repo's README, then add the key
 here under **Settings → Secrets and variables → Actions**.
+
+## License
+
+[MIT](LICENSE). The served model is trained on the iMaterialist Fashion 2020 (Kaggle FGVC7) data,
+whose terms target research and non-commercial use.

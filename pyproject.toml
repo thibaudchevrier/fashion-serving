@@ -2,6 +2,8 @@
 name = "fashion-serving"
 version = "0.2.0"
 description = "Local serving of the fashion Mask R-CNN: MLflow inference service + Flask web app"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
