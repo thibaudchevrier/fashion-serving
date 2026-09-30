@@ -130,3 +130,15 @@ def test_openapi_documents_the_api(client):
     """The API schema is served (the interactive docs read it)."""
     paths = client.get("/openapi.json").json()["paths"]
     assert {"/api/images", "/api/images/from-url", "/api/images/{image_id}"} <= set(paths)
+
+
+def test_front_end_is_served_when_built(make_app, model, tmp_path):
+    """The built front end is served at /, behind the API; without it / points to the docs."""
+    assert "not built" in TestClient(make_app(model)).get("/").text
+    built = tmp_path / "dist"
+    built.mkdir()
+    (built / "index.html").write_text("<div id=root></div>")
+    client = TestClient(make_app(model, FRONTEND_DIR=built))
+    assert client.get("/").text == "<div id=root></div>"
+    assert client.get("/api/config").json()["default_threshold"] == 0.7
+    assert client.get("/healthz").json() == {"status": "ok"}

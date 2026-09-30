@@ -27,8 +27,7 @@ ALLOWED = {
     "storage": {"service"},
     "fetching": {"service"},
     "api": {"service"},
-    "pages": {"service", "rendering"},
-    "app": {"api", "pages", "fetching", "inference", "service", "storage"},
+    "app": {"api", "fetching", "inference", "service", "storage"},
 }
 
 

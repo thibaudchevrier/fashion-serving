@@ -1,9 +1,10 @@
 """The composition root of the web front-end: ``create_app``.
 
 ``create_app`` reads the settings, builds the adapters (the HTTP inference client, the image store
-on disk, the URL fetcher) and binds them to the JSON API (``fashion_webapp.api``, under ``/api``)
-and the page (``fashion_webapp.pages``), which call the use cases (``fashion_webapp.service``).
-Served by uvicorn: ``uvicorn --factory fashion_webapp.app:create_app``.
+on disk, the URL fetcher) and binds them to the JSON API (``fashion_webapp.api``, under ``/api``),
+which calls the use cases (``fashion_webapp.service``). It also serves the React front end, built
+into ``FRONTEND_DIR`` (``webapp/frontend``, see its README). Served by uvicorn:
+``uvicorn --factory fashion_webapp.app:create_app``.
 """
 
 import os
@@ -11,9 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from fashion_webapp import api, pages
+from fashion_webapp import api
 from fashion_webapp.fetching import UrlFetcher
 from fashion_webapp.inference import InferenceClient
 from fashion_webapp.service import Settings
@@ -21,6 +23,10 @@ from fashion_webapp.storage import FileImageStore
 
 # Detections stored for each image: enough to lower the threshold in the browser.
 DEFAULT_STORED_MIN_SCORE = 0.3
+# Shown at / when the front end is not built (e.g. running the API from source).
+NO_FRONTEND = """<!doctype html><title>Fashion segmentation</title>
+<p>The front end is not built: see <code>webapp/frontend/README.md</code>.
+The API is documented at <a href="/docs">/docs</a>.</p>"""
 
 
 def settings_from(env: dict[str, Any]) -> tuple[Settings, int]:
@@ -56,7 +62,7 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
 
     Settings come from environment variables: ``INFERENCE_URL``, ``UPLOAD_DIR``, ``MIN_SCORE``
     (lowest confidence stored), ``DISPLAY_MIN_SCORE`` (default threshold shown),
-    ``MAX_IMAGE_SIDE`` and ``MAX_UPLOAD_BYTES``.
+    ``MAX_IMAGE_SIDE``, ``MAX_UPLOAD_BYTES`` and ``FRONTEND_DIR`` (the built front end).
 
     Parameters
     ----------
@@ -85,8 +91,6 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     app.include_router(
         api.build_router(store, inference, fetcher, settings, max_upload_bytes), prefix="/api"
     )
-    app.include_router(pages.build_router(store, inference, settings, max_upload_bytes))
-    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -98,5 +102,22 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
             ``{"status": "ok"}``.
         """
         return {"status": "ok"}
+
+    frontend = Path(env.get("FRONTEND_DIR", "frontend/dist"))
+    if (frontend / "index.html").is_file():
+        # Last: the API routes above take precedence over the front end's files.
+        app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")
+    else:
+
+        @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+        def no_frontend() -> str:
+            """Explain that the front end is not built.
+
+            Returns
+            -------
+            str
+                A short page pointing to the API docs.
+            """
+            return NO_FRONTEND
 
     return app

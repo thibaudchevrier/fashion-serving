@@ -1,11 +1,15 @@
 # `lint` runs the pre-commit hooks on every file: the same checks as the git hooks and CI.
 WEBAPP = uv run --project webapp
+# npm for the front end: the local one if Node is installed, otherwise the same Node in Docker.
+NPM = $(if $(shell command -v npm),npm --prefix webapp/frontend,docker run --rm \
+	-e NPM_CONFIG_UPDATE_NOTIFIER=false -v $(CURDIR)/webapp/frontend:/app -w /app node:24-alpine npm)
 
-.PHONY: install hooks format lint test check model up smoke down deploy
+.PHONY: install hooks format lint test front-check front-dev check model up smoke down deploy
 
 install:
 	uv sync --locked
 	uv sync --locked --project webapp
+	$(NPM) ci --no-audit --no-fund
 
 hooks:
 	uv run pre-commit install --hook-type pre-commit --hook-type commit-msg
@@ -20,7 +24,18 @@ lint:
 test:
 	cd webapp && uv run pytest
 
-check: lint test
+# Front end: types, lint (typescript-eslint, strict), unit tests, production build.
+front-check:
+	$(NPM) run typecheck
+	$(NPM) run lint
+	$(NPM) test
+	$(NPM) run build
+
+# Front end with hot reload on :5173, calling the API of a running `make up` (needs Node locally).
+front-dev:
+	npm --prefix webapp/frontend run dev
+
+check: lint test front-check
 
 model:
 	uv run dvc pull

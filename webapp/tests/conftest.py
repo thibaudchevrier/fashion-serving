@@ -113,6 +113,7 @@ def make_app(tmp_path):
                 "UPLOAD_DIR": tmp_path,
                 "INFERENCE_CLIENT": model,
                 "IMAGE_FETCHER": fetcher or FakeFetcher({}),
+                "FRONTEND_DIR": tmp_path / "no-frontend",  # never a local build
                 **config,
             }
         )

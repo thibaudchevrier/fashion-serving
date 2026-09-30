@@ -13,7 +13,7 @@ trained.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | `dvc import` pointer: source repo, `rev` and `rev_lock` (the deployed model version) |
 | `inference/Dockerfile` | `mlflow models serve` on the model; installs the model's own `requirements.txt` |
-| `webapp/` | FastAPI app (own uv project, Python 3.12): JSON API and page; upload a photo or an image URL, call `/invocations`, describe the garments (see below) |
+| `webapp/` | FastAPI app (own uv project, Python 3.12): JSON API; upload a photo or an image URL, call `/invocations`, describe the garments (see below). Serves `webapp/frontend` (React + TypeScript, its own README) |
 | `compose.yaml` | `inference` (:5001) + `webapp` (:8000): built from source (`make up`) or pulled from ghcr.io (`make deploy TAG=...`) |
 | `.github/workflows/release.yml` | Release: version bump, changelog, tag, GitHub Release, then both images pushed to `ghcr.io/thibaudchevrier/fashion-serving-{inference,webapp}` (amd64 + arm64) |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
@@ -29,14 +29,14 @@ trained.
 | `storage.py` | Adapter: `FileImageStore`, images and predictions on disk (an `ImageStore`) | `service` |
 | `fetching.py` | Adapter: `UrlFetcher`, images from public URLs only (an `ImageFetcher`): scheme, port and address checks on every redirect, size limit | `service` |
 | `api.py` | FastAPI routes under `/api` (JSON, documented at `/docs`): requests into use cases, errors into statuses | `service` |
-| `pages.py` | The server-rendered page (`/`): forms into use cases | `service`, `rendering` |
-| `app.py` | `create_app`, the composition root: settings, adapters, routers (`uvicorn --factory fashion_webapp.app:create_app`) | all |
+| `app.py` | `create_app`, the composition root: settings, adapters, the API router, and the built front end (`FRONTEND_DIR`) at `/` (`uvicorn --factory fashion_webapp.app:create_app`) | all |
 
 Adapters depend on the use cases, never the reverse; they raise the service's errors
 (`InferenceUnavailable`, `UnreadableImage`, `UrlRejected`), not their library's.
 `webapp/tests/test_architecture.py` enforces these rules; `test_service.py` tests the use cases
-with in-memory adapters, `test_api.py` and `test_pages.py` the web layers with a fake model and a
-fake fetcher (`conftest.py`), `test_fetching.py` the URL checks without network.
+with in-memory adapters, `test_api.py` the web layer with a fake model and a fake fetcher
+(`conftest.py`), `test_fetching.py` the URL checks without network. The front end talks to the API
+only; its types (`frontend/src/api.ts`) mirror `api.py`'s models: change both together.
 The URL fetcher must stay the only way the server reaches addresses chosen by users.
 
 Two uv environments: the repo root (tooling: DVC, pre-commit, commitizen) and `webapp/` (the app,
@@ -71,7 +71,8 @@ make hooks     # once: install the pre-commit and commit-msg git hooks
 make format    # ruff format + ruff --fix
 make lint      # all pre-commit hooks on all files (exactly what CI runs; hadolint needs Docker)
 make test      # webapp tests, including docstring examples
-make check     # lint + test: run before every commit
+make front-check  # front end: types, lint, unit tests, build (Node in Docker if npm is missing)
+make check     # lint + test + front-check: run before every commit
 make model     # dvc pull: fetch the pinned model
 make up        # docker compose up --build --wait
 make smoke     # end-to-end check of the running stack

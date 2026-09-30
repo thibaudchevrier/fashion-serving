@@ -1,0 +1,7 @@
+# Only the sources are needed: never send local environments, dependencies or builds.
+.venv
+**/__pycache__
+**/.pytest_cache
+tests
+frontend/node_modules
+frontend/dist

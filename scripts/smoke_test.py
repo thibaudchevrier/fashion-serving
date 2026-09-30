@@ -2,7 +2,7 @@
 
 1. Calls the inference service directly and validates the response against the contract.
 2. Uploads the same image through the webapp's API, then checks its garments (with their colors),
-   the overlay, a garment cutout and the page.
+   the overlay, a garment cutout, and that the front end is served.
 
 Usage: uv run --project webapp python scripts/smoke_test.py [--inference URL] [--webapp URL]
 """
@@ -88,7 +88,10 @@ def main() -> None:
         png.raise_for_status()
         if not png.content.startswith(b"\x89PNG"):
             sys.exit(f"FAIL: {path} is not a PNG")
-    requests.get(args.webapp, timeout=30).raise_for_status()
+    page = requests.get(args.webapp, timeout=30)
+    page.raise_for_status()
+    if 'id="root"' not in page.text:
+        sys.exit("FAIL: the front end is not served at /")
     requests.delete(f"{api}/images/{image['id']}", timeout=30).raise_for_status()
     count = len(image["garments"])
     print(f"OK webapp: upload -> {count} garment(s) with colors -> overlay, cutout, page")

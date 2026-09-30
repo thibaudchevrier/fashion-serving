@@ -17,7 +17,7 @@ The model is trained and packaged in
  │ (MLflow pyfunc)      │           │        ▼                                             │
  └──────────────────────┘           │ inference   mlflow models serve   :5001 ─┐           │
    files on Google Drive            │                                         │ HTTP JSON │
-                                    │ webapp      FastAPI: API + UI     :8000 ◄┘           │
+                                    │ webapp      FastAPI API + React   :8000 ◄┘           │
                                     └──────────────────────────────────────────────────────┘
                                                     ▲
                                                  browser
@@ -42,7 +42,7 @@ inference image.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | Import pointer: source repo, `rev` (branch/tag) and `rev_lock` (exact commit) |
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
-| `webapp/` | FastAPI app (uv project): `src/fashion_webapp/` (use cases in `service.py`; adapters for the model, the storage and URL downloads; the JSON API in `api.py`, the page in `pages.py`, wiring in `create_app`), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
+| `webapp/` | FastAPI app (uv project): `src/fashion_webapp/` (use cases in `service.py`; adapters for the model, the storage and URL downloads; the JSON API in `api.py`, wiring in `create_app`), `frontend/` (React + TypeScript, see its README), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |
@@ -84,9 +84,12 @@ make up           # docker compose up -d --build --wait
 open http://localhost:8000
 ```
 
-- **Upload & analyse**: the photo is resized to at most 800 px, sent to the model, and shown with
-  colored masks, boxes and labels. The detected items (confidence of 0.7 or more) are listed below it.
-- **Show original photos / Show predictions** toggles the overlay. **Delete** removes a photo.
+- **Add a photo**: drop or pick a file, or paste an image URL. It is resized to at most 800 px and
+  sent to the model.
+- **Explore it**: each garment's mask over the photo; hover one to highlight it (and its row). A
+  **confidence slider** filters the detections instantly (from 0.3, 0.7 by default), each can be
+  hidden, and each row shows the garment's **dominant colors** and a **cutout** download.
+- The gallery keeps every photo; the selected one is in the URL, so it can be linked.
 - If the model is down, the photo is kept with an **Analyse** button to retry.
 - The inference service needs ~20 s to load the model; `--wait` returns once it's healthy.
 
@@ -180,9 +183,10 @@ recreate it once with `docker compose down -v` (it only holds temporary uploads)
 make install      # both environments
 make hooks        # once: pre-commit and commit-msg git hooks
 make format       # ruff format + autofix
-make check        # lint (all pre-commit hooks, exactly what CI runs) + tests (incl. doctests)
+make check        # lint (all pre-commit hooks) + tests (incl. doctests) + front end checks
 cd webapp && INFERENCE_URL=http://localhost:5001 \
   uv run uvicorn --factory fashion_webapp.app:create_app --reload --port 8000   # hot reload
+make front-dev    # front end with hot reload on :5173, against the API (needs Node 24)
 ```
 
 Code quality is defined once, in `.pre-commit-config.yaml`: ruff (format, lint, numpy docstrings),
