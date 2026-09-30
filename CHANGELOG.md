@@ -1,3 +1,9 @@
+## v0.3.0 (2026-09-30)
+
+### Feat
+
+- **release**: multi-arch images named fashion-serving-{inference,webapp}
+
 ## v0.2.0 (2026-09-30)
 
 ### Feat
