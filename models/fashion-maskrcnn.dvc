@@ -1,11 +1,11 @@
-md5: 149efc87d193ea6386ad409a55bbc3a1
+md5: ad19a96e0ddfea8c16eaafb72b96ea75
 frozen: true
 deps:
 - path: models/fashion-maskrcnn-torchvision
   repo:
     url: https://github.com/thibaudchevrier/fashion-seg-train.git
     rev: main
-    rev_lock: cd61fd7e0c3dce385856549101ea2cf9d3834175
+    rev_lock: b637929337e5961ab6633c2ac0247dbcfd38c5a2
     config: .dvc/fashion-seg-train.config.local
 outs:
 - md5: abbcb9d4aef1c994f64bc7c9b7742edd.dir
