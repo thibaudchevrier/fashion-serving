@@ -1,4 +1,4 @@
-"""Use-case tests with in-memory adapters: no Flask, no HTTP, no files."""
+"""Use-case tests with in-memory adapters: no web framework, no HTTP, no files."""
 
 import io
 
@@ -120,3 +120,81 @@ def test_overlay_draws_only_analysed_images():
     service.analyse(store, FakeModel(), image_id, SETTINGS)
     with Image.open(io.BytesIO(service.overlay(store, image_id))) as img:
         assert img.size == (4, 3)
+
+
+class Fetcher:
+    """ImageFetcher serving one PNG, refusing everything else."""
+
+    def fetch(self, url):
+        """Return the PNG for the known URL."""
+        if url != "https://shop.example/a.png":
+            raise service.UrlRejected("refused")
+        return _png()
+
+
+def test_upload_from_url_stores_and_analyses():
+    """A downloaded image is stored and analysed like an upload; refusals store nothing."""
+    store, model = MemoryStore(), FakeModel()
+    outcome = service.upload_from_url(
+        store, model, Fetcher(), "https://shop.example/a.png", SETTINGS
+    )
+    assert outcome.analysed and store.get(outcome.image_id).predictions is not None
+    with pytest.raises(service.UrlRejected):
+        service.upload_from_url(store, model, Fetcher(), "http://10.0.0.1/", SETTINGS)
+    assert len(store.images) == 1
+
+
+def _two_garments(store):
+    """Store a 4x3 image with a low and a high confidence garment, in that order."""
+    image_id = service.upload(store, FakeModel(fail=True), ("a.png", _png()), SETTINGS).image_id
+    whole = {"box": [0, 0, 3, 4], "mask_rle": "1 12"}
+    store.save_predictions(
+        image_id,
+        {
+            "height": 3,
+            "width": 4,
+            "instances": [
+                {"class_id": 6, "label": "belt", "score": 0.4, **whole},
+                {"class_id": 10, "label": "dress", "score": 0.9, **whole},
+            ],
+        },
+    )
+    return image_id
+
+
+def test_details_sorts_garments_and_adds_colors():
+    """Garments come most confident first, keep their index, and get a color and a palette."""
+    store = MemoryStore()
+    image_id = _two_garments(store)
+    details = service.details(store, image_id)
+    assert (details.analysed, details.width, details.height) == (True, 4, 3)
+    assert [(g.instance["label"], g.index) for g in details.garments] == [("dress", 1), ("belt", 0)]
+    assert details.garments[0].palette[0].name == "black"  # the test PNG is black
+    assert service.details(store, "nope") is None
+
+
+def test_details_of_an_image_not_analysed():
+    """An image without predictions has no garments yet."""
+    store = MemoryStore()
+    image_id = service.upload(store, FakeModel(fail=True), ("a.png", _png()), SETTINGS).image_id
+    assert not service.details(store, image_id).garments
+
+
+def test_cutout_of_known_garments_only():
+    """A cutout exists for each garment index, not beyond, nor for unanalysed images."""
+    store = MemoryStore()
+    image_id = _two_garments(store)
+    assert service.cutout(store, image_id, 1).startswith(b"\x89PNG")
+    assert service.cutout(store, image_id, 2) is None
+    assert service.cutout(store, image_id, -1) is None
+    assert service.cutout(store, "nope", 0) is None
+
+
+def test_overlay_draws_only_confident_garments(monkeypatch):
+    """The overlay leaves out detections below the requested confidence."""
+    drawn = []
+    monkeypatch.setattr(service, "render_overlay", lambda image, p: drawn.append(p) or b"png")
+    store = MemoryStore()
+    image_id = _two_garments(store)
+    service.overlay(store, image_id, min_score=0.7)
+    assert [i["label"] for i in drawn[0]["instances"]] == ["dress"]

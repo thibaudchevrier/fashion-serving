@@ -17,7 +17,7 @@ The model is trained and packaged in
  │ (MLflow pyfunc)      │           │        ▼                                             │
  └──────────────────────┘           │ inference   mlflow models serve   :5001 ─┐           │
    files on Google Drive            │                                         │ HTTP JSON │
-                                    │ webapp      Flask upload UI       :8000 ◄┘           │
+                                    │ webapp      FastAPI: API + UI     :8000 ◄┘           │
                                     └──────────────────────────────────────────────────────┘
                                                     ▲
                                                  browser
@@ -42,7 +42,7 @@ inference image.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | Import pointer: source repo, `rev` (branch/tag) and `rev_lock` (exact commit) |
 | `inference/Dockerfile` | Model server image (the model is copied in at build time) |
-| `webapp/` | Flask app (uv project): `src/fashion_webapp/` (use cases in `service.py`, adapters for the model and the storage, routes in `web.py`, wiring in `create_app`), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
+| `webapp/` | FastAPI app (uv project): `src/fashion_webapp/` (use cases in `service.py`; adapters for the model, the storage and URL downloads; the JSON API in `api.py`, the page in `pages.py`, wiring in `create_app`), tests, Dockerfile. Depends on `fashion-seg-contract`, referenced by its release wheel URL in `[tool.uv.sources]` |
 | `compose.yaml` | Runs `inference` + `webapp`; uploads persist in the `uploads` volume |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
 | `Makefile` | The commands below, shared with CI |
@@ -51,7 +51,7 @@ inference image.
 
 Requires [uv](https://docs.astral.sh/uv/) and Docker.
 
-**1. Install the tooling** (DVC for the repo, Flask and dev tools for the webapp):
+**1. Install the tooling** (DVC for the repo, FastAPI and dev tools for the webapp):
 
 ```bash
 make install
@@ -85,15 +85,31 @@ open http://localhost:8000
 ```
 
 - **Upload & analyse**: the photo is resized to at most 800 px, sent to the model, and shown with
-  colored masks, boxes and labels. The detected items are listed below it.
+  colored masks, boxes and labels. The detected items (confidence of 0.7 or more) are listed below it.
 - **Show original photos / Show predictions** toggles the overlay. **Delete** removes a photo.
 - If the model is down, the photo is kept with an **Analyse** button to retry.
 - The inference service needs ~20 s to load the model; `--wait` returns once it's healthy.
 
+The same features, and more, are in the JSON API, documented at http://localhost:8000/docs:
+
+| Endpoint | What it does |
+|----------|--------------|
+| `POST /api/images` | Upload a photo (multipart `file`); returns its garments |
+| `POST /api/images/from-url` | Download an image from a URL (`{"url": ...}`), then the same |
+| `GET /api/images`, `GET /api/images/{id}` | The gallery; one image's garments: label, score, box, mask (RLE), color and dominant colors |
+| `POST /api/images/{id}/analyse`, `DELETE /api/images/{id}` | Ask the model again; delete |
+| `GET /api/images/{id}/image.jpg`, `.../overlay.png` | The photo; with its detections drawn |
+| `GET /api/images/{id}/garments/{index}/cutout.png` | One garment, cut out (transparent PNG) |
+
+Every detection with a confidence of 0.3 or more is stored, so a client can lower its threshold
+without asking the model again. URL downloads only reach public web addresses: http(s) on the
+default ports, no private or internal addresses (also after redirects), images only, 20 MB at
+most.
+
 Check the whole chain, then stop:
 
 ```bash
-make smoke        # calls the model, validates the response contract, uploads through the webapp
+make smoke        # calls the model, validates the response contract, uploads through the API
 make down         # stop (add -v to docker compose down to also delete uploaded photos)
 ```
 
@@ -108,9 +124,10 @@ Settings, as environment variables (see `compose.yaml`):
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `MIN_SCORE` | the contract's (`0.7`) | Minimum detection confidence shown |
+| `MIN_SCORE` | `0.3` | Lowest detection confidence stored |
+| `DISPLAY_MIN_SCORE` | the contract's (`0.7`) | Confidence threshold shown by default |
+| `MAX_UPLOAD_BYTES` | 20 MB | Largest upload or download |
 | `TAG` | `latest` | Version of the released images `make deploy` runs |
-| `SECRET_KEY` | `dev-only-change-me` | Flask session key; set a real one outside your machine |
 
 ## Deploy a new model version
 
@@ -134,7 +151,7 @@ Every release publishes two images to the GitHub Container Registry, built from 
 | Image | Content |
 |-------|---------|
 | `ghcr.io/thibaudchevrier/fashion-serving-inference` | `mlflow models serve` with the pinned model baked in (~0.7 GB compressed, PyTorch CPU) |
-| `ghcr.io/thibaudchevrier/fashion-serving-webapp` | The Flask app (gunicorn, ~0.1 GB compressed) |
+| `ghcr.io/thibaudchevrier/fashion-serving-webapp` | The FastAPI app (uvicorn, ~0.1 GB compressed) |
 
 Tags: `X.Y.Z`, `X.Y`, `X`, `latest` and `sha-<commit>`, for `linux/amd64` and `linux/arm64`
 (Apple Silicon runs them natively). Releases up to 0.2.0 were published as
@@ -165,7 +182,7 @@ make hooks        # once: pre-commit and commit-msg git hooks
 make format       # ruff format + autofix
 make check        # lint (all pre-commit hooks, exactly what CI runs) + tests (incl. doctests)
 cd webapp && INFERENCE_URL=http://localhost:5001 \
-  uv run flask --app "fashion_webapp.app:create_app()" run --debug     # webapp with hot reload
+  uv run uvicorn --factory fashion_webapp.app:create_app --reload --port 8000   # hot reload
 ```
 
 Code quality is defined once, in `.pre-commit-config.yaml`: ruff (format, lint, numpy docstrings),

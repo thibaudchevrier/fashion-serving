@@ -28,5 +28,5 @@ ENV PATH=/app/.venv/bin:$PATH \
     UPLOAD_DIR=/data/uploads
 USER 1000
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", \
-     "fashion_webapp.app:create_app()"]
+CMD ["uvicorn", "--factory", "fashion_webapp.app:create_app", \
+     "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

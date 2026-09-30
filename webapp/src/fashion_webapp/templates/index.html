@@ -4,30 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fashion segmentation</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
 </head>
 <body>
   <header>
     <h1>Fashion segmentation</h1>
-    <form class="upload" method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+    <form class="upload" method="post" action="/upload" enctype="multipart/form-data">
       <input type="file" name="file" accept="image/*" required>
       <input type="hidden" name="overlay" value="{{ '1' if overlay else '0' }}">
       <button type="submit">Upload &amp; analyse</button>
     </form>
     <nav>
       {% if overlay %}
-        <a href="{{ url_for('index', overlay=0) }}">Show original photos</a>
+        <a href="/?overlay=0">Show original photos</a>
       {% else %}
-        <a href="{{ url_for('index', overlay=1) }}">Show predictions</a>
+        <a href="/?overlay=1">Show predictions</a>
       {% endif %}
+      <a href="/docs">API</a>
     </nav>
   </header>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-      <p class="flash {{ category }}">{{ message }}</p>
-    {% endfor %}
-  {% endwith %}
+  {% if error %}
+    <p class="flash error">{{ error }}</p>
+  {% endif %}
 
   <main>
     {% if not images %}
@@ -35,19 +34,19 @@
     {% endif %}
     {% for item in images %}
       <article class="card">
-        {% if overlay and item.predictions is not none %}
-          <img src="{{ url_for('overlay', image_id=item.image_id) }}" alt="Photo with detected clothes">
+        {% if overlay and item.analysed %}
+          <img src="/api/images/{{ item.image_id }}/overlay.png" alt="Photo with detected clothes">
         {% else %}
-          <img src="{{ url_for('image', image_id=item.image_id) }}" alt="Uploaded photo">
+          <img src="/api/images/{{ item.image_id }}/image.jpg" alt="Uploaded photo">
         {% endif %}
         <div class="details">
-          {% if item.predictions is none %}
+          {% if not item.analysed %}
             <p class="muted">Not analysed yet.</p>
-          {% elif not item.predictions.instances %}
+          {% elif not item.instances %}
             <p class="muted">No clothes detected.</p>
           {% else %}
             <ul class="labels">
-              {% for inst in item.predictions.instances %}
+              {% for inst in item.instances %}
                 {% set c = class_color(inst.class_id) %}
                 <li><span class="swatch" style="background: rgb({{ c[0] }}, {{ c[1] }}, {{ c[2] }})"></span>
                   {{ inst.label }} <span class="muted">{{ '%.0f' % (inst.score * 100) }}%</span></li>
@@ -55,12 +54,12 @@
             </ul>
           {% endif %}
           <div class="actions">
-            {% if item.predictions is none %}
-              <form method="post" action="{{ url_for('predict', image_id=item.image_id) }}">
+            {% if not item.analysed %}
+              <form method="post" action="/images/{{ item.image_id }}/predict">
                 <button type="submit">Analyse</button>
               </form>
             {% endif %}
-            <form method="post" action="{{ url_for('delete', image_id=item.image_id) }}">
+            <form method="post" action="/images/{{ item.image_id }}/delete">
               <input type="hidden" name="overlay" value="{{ '1' if overlay else '0' }}">
               <button type="submit" class="secondary">Delete</button>
             </form>
