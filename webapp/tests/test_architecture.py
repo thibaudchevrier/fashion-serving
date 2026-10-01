@@ -13,6 +13,7 @@ FORBIDDEN = {
     "service": WEB | {"requests", "PIL"},  # use cases: no web framework, no HTTP, no I/O
     "rendering": WEB | {"requests"},
     "palette": WEB | {"requests"},
+    "board": WEB | {"requests", "PIL"},
     "inference": WEB,
     "storage": WEB | {"requests"},
     "fetching": WEB,
@@ -23,10 +24,11 @@ ALLOWED = {
     "service": {"rendering", "palette"},
     "rendering": {"palette"},
     "palette": set(),
+    "board": {"service"},
     "inference": {"service"},
-    "storage": {"service"},
+    "storage": {"service", "board"},
     "fetching": {"service"},
-    "api": {"service"},
+    "api": {"service", "board"},
     "app": {"api", "fetching", "inference", "service", "storage"},
 }
 

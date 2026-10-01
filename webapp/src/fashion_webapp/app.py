@@ -19,7 +19,7 @@ from fashion_webapp import api
 from fashion_webapp.fetching import UrlFetcher
 from fashion_webapp.inference import InferenceClient
 from fashion_webapp.service import Settings
-from fashion_webapp.storage import FileImageStore
+from fashion_webapp.storage import FileBoardStore, FileImageStore
 
 # Detections stored for each image: enough to lower the threshold in the browser.
 DEFAULT_STORED_MIN_SCORE = 0.3
@@ -79,6 +79,7 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     env: dict[str, Any] = {**os.environ, **(config or {})}
     settings, max_upload_bytes = settings_from(env)
     store = FileImageStore(env.get("UPLOAD_DIR", "uploads"))
+    boards = FileBoardStore(env.get("UPLOAD_DIR", "uploads"))
     inference = env.get("INFERENCE_CLIENT") or InferenceClient(
         env.get("INFERENCE_URL", "http://localhost:5001")
     )
@@ -91,6 +92,7 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     app.include_router(
         api.build_router(store, inference, fetcher, settings, max_upload_bytes), prefix="/api"
     )
+    app.include_router(api.build_board_router(store, boards), prefix="/api")
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

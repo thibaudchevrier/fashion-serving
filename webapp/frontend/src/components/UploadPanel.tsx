@@ -19,6 +19,7 @@ export function UploadPanel({ maxBytes, onUploaded }: Props) {
   const done = (result: Uploaded) => {
     queryClient.setQueryData(["image", result.image.id], result.image);
     void queryClient.invalidateQueries({ queryKey: ["images"] });
+    void queryClient.invalidateQueries({ queryKey: ["board"] });
     onUploaded(result);
   };
   const upload = useMutation({ mutationFn: api.upload, onSuccess: done });

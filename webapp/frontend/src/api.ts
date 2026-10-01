@@ -38,6 +38,23 @@ export interface ImageSummary {
   id: string;
   analysed: boolean;
   garment_count: number;
+  width: number | null;
+  height: number | null;
+  /** [y1, x1, y2, x2]: the area covered by the garments shown by default (to crop around). */
+  outfit: [number, number, number, number] | null;
+}
+
+/** What a board tile shows. */
+export type TileView = "photo" | "masks" | "cutouts";
+
+/** One photo on the board, on a 12-column grid. */
+export interface Tile {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  view: TileView;
 }
 
 export interface ImageDetails {
@@ -109,6 +126,15 @@ export const api = {
       }),
     ),
   analyse: (id: string) => json<ImageDetails>(`/images/${id}/analyse`, { method: "POST" }),
+  board: async () => (await json<{ tiles: Tile[] }>("/board")).tiles,
+  saveBoard: async (tiles: Tile[]) =>
+    (
+      await json<{ tiles: Tile[] }>("/board", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tiles }),
+      })
+    ).tiles,
   remove: async (id: string) => {
     await call(`/images/${id}`, { method: "DELETE" });
   },

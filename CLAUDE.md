@@ -25,16 +25,17 @@ trained.
 | `service.py` | **Use cases** (upload a file or a URL, analyse, garment details, cutout, overlay), the ports they drive (`Inference`, `ImageStore`, `ImageFetcher` Protocols), their records (`StoredImage`, `Garment`, `ImageDetails`) and errors. No web framework, no HTTP, no files | `rendering`, `palette` |
 | `rendering.py` | Images from predictions: overlay, garment cutouts, garment colors (pure) | `palette` |
 | `palette.py` | Dominant colors of pixels, and their names (pure) | nothing |
+| `board.py` | **Board use cases**: tiles kept in step with the images (new ones placed below), saving with clamping, each image's outfit box; the `Tile` record and the `BoardStore` port | `service` |
 | `inference.py` | Adapter: `InferenceClient`, the model over HTTP (an `Inference`) | `service` |
-| `storage.py` | Adapter: `FileImageStore`, images and predictions on disk (an `ImageStore`) | `service` |
+| `storage.py` | Adapters on the uploads directory: `FileImageStore` (images and predictions, an `ImageStore`), `FileBoardStore` (`board.json`, written atomically, a `BoardStore`) | `service`, `board` |
 | `fetching.py` | Adapter: `UrlFetcher`, images from public URLs only (an `ImageFetcher`): scheme, port and address checks on every redirect, size limit | `service` |
-| `api.py` | FastAPI routes under `/api` (JSON, documented at `/docs`): requests into use cases, errors into statuses | `service` |
+| `api.py` | FastAPI routes under `/api` (JSON, documented at `/docs`): requests into use cases, errors into statuses | `service`, `board` |
 | `app.py` | `create_app`, the composition root: settings, adapters, the API router, and the built front end (`FRONTEND_DIR`) at `/` (`uvicorn --factory fashion_webapp.app:create_app`) | all |
 
 Adapters depend on the use cases, never the reverse; they raise the service's errors
 (`InferenceUnavailable`, `UnreadableImage`, `UrlRejected`), not their library's.
 `webapp/tests/test_architecture.py` enforces these rules; `test_service.py` tests the use cases
-with in-memory adapters, `test_api.py` the web layer with a fake model and a fake fetcher
+with in-memory adapters, `test_board.py` the board's, `test_api.py` the web layer with a fake model and a fake fetcher
 (`conftest.py`), `test_fetching.py` the URL checks without network. The front end talks to the API
 only; its types (`frontend/src/api.ts`) mirror `api.py`'s models: change both together.
 The URL fetcher must stay the only way the server reaches addresses chosen by users.

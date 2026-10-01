@@ -9,7 +9,8 @@ from typing import Annotated
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel, Field
 
-from fashion_webapp import service
+from fashion_webapp import board, service
+from fashion_webapp.board import BoardStore, TileView
 from fashion_webapp.service import Group, ImageFetcher, ImageStore, Inference, Settings
 
 JPEG, PNG = "image/jpeg", "image/png"
@@ -99,11 +100,60 @@ class ImageSummary(BaseModel):
         Whether the model has answered for this image.
     garment_count : int
         Detections above the default threshold.
+    width : int | None
+        Width in pixels, once analysed.
+    height : int | None
+        Height in pixels, once analysed.
+    outfit : list[int] | None
+        ``[y1, x1, y2, x2]``: the area covered by the detections above the default threshold
+        (to crop around the outfit), or ``None``.
     """
 
     id: str
     analysed: bool
     garment_count: int
+    width: int | None
+    height: int | None
+    outfit: list[int] | None
+
+
+class Tile(BaseModel):
+    """One photo on the board, on a 12-column grid.
+
+    Attributes
+    ----------
+    id : str
+        Image id.
+    x : int
+        Left column, from 0.
+    y : int
+        Top row, from 0.
+    w : int
+        Width in columns.
+    h : int
+        Height in rows.
+    view : TileView
+        What the tile shows: the photo, the photo with its masks, or its garments cut out.
+    """
+
+    id: str
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+    w: int = Field(ge=1, le=board.COLUMNS)
+    h: int = Field(ge=1, le=board.MAX_ROWS)
+    view: TileView = "photo"
+
+
+class Board(BaseModel):
+    """The photos arranged as a composition.
+
+    Attributes
+    ----------
+    tiles : list[Tile]
+        One tile per stored image.
+    """
+
+    tiles: list[Tile]
 
 
 class ImageDetails(BaseModel):
@@ -175,6 +225,102 @@ def _details(details: service.ImageDetails) -> ImageDetails:
             for g in details.garments
         ],
     )
+
+
+def _summary(image: service.StoredImage, min_score: float) -> ImageSummary:
+    """Summarize a stored image for the gallery.
+
+    Parameters
+    ----------
+    image : service.StoredImage
+        The image and its predictions.
+    min_score : float
+        Detections below this confidence are not counted.
+
+    Returns
+    -------
+    ImageSummary
+        The summary.
+    """
+    predictions = image.predictions
+    if predictions is None:
+        return ImageSummary(
+            id=image.image_id, analysed=False, garment_count=0, width=None, height=None, outfit=None
+        )
+    return ImageSummary(
+        id=image.image_id,
+        analysed=True,
+        garment_count=sum(i["score"] >= min_score for i in predictions["instances"]),
+        width=predictions["width"],
+        height=predictions["height"],
+        outfit=board.outfit_box(predictions, min_score),
+    )
+
+
+def _board(tiles: list[board.Tile]) -> Board:
+    """Convert the use case's tiles into the API model.
+
+    Parameters
+    ----------
+    tiles : list[board.Tile]
+        The board's tiles.
+
+    Returns
+    -------
+    Board
+        The API model.
+    """
+    return Board(
+        tiles=[Tile(id=t.image_id, x=t.x, y=t.y, w=t.w, h=t.h, view=t.view) for t in tiles]
+    )
+
+
+def build_board_router(store: ImageStore, boards: BoardStore) -> APIRouter:
+    """Build the board's routes, bound to the given adapters.
+
+    Parameters
+    ----------
+    store : ImageStore
+        Stored images.
+    boards : BoardStore
+        Where the board is saved.
+
+    Returns
+    -------
+    APIRouter
+        The routes, to mount under ``/api``.
+    """
+    router = APIRouter()
+
+    @router.get("/board")
+    def get_board() -> Board:
+        """Read the board: one tile per stored image (new images are placed below the others).
+
+        Returns
+        -------
+        Board
+            The tiles.
+        """
+        return _board(board.board(store, boards))
+
+    @router.put("/board")
+    def put_board(body: Board) -> Board:
+        """Save a new arrangement of the board.
+
+        Parameters
+        ----------
+        body : Board
+            The tiles; those of unknown images are ignored.
+
+        Returns
+        -------
+        Board
+            The board as saved.
+        """
+        tiles = [board.Tile(t.id, t.x, t.y, t.w, t.h, t.view) for t in body.tiles]
+        return _board(board.save_board(store, boards, tiles))
+
+    return router
 
 
 def build_router(  # pylint: disable=too-many-locals  # one nested function per route
@@ -270,17 +416,7 @@ def build_router(  # pylint: disable=too-many-locals  # one nested function per 
         list[ImageSummary]
             The gallery.
         """
-        return [
-            ImageSummary(
-                id=img.image_id,
-                analysed=img.predictions is not None,
-                garment_count=sum(
-                    inst["score"] >= settings.display_min_score
-                    for inst in (img.predictions or {"instances": []})["instances"]
-                ),
-            )
-            for img in store.list()
-        ]
+        return [_summary(img, settings.display_min_score) for img in store.list()]
 
     @router.post("/images", status_code=status.HTTP_201_CREATED, response_model=ImageDetails)
     def upload(file: Annotated[UploadFile, File()]) -> Response:

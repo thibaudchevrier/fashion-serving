@@ -28,7 +28,11 @@ export function Explorer({ id, config, onDeleted }: Props) {
   const [highlighted, setHighlighted] = useState<Set<number>>(NONE);
   const [showMasks, setShowMasks] = useState(true);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["images"] });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["images"] }),
+      queryClient.invalidateQueries({ queryKey: ["board"] }),
+    ]);
   const analyse = useMutation({
     mutationFn: () => api.analyse(id),
     onSuccess: (details) => {
@@ -74,7 +78,9 @@ export function Explorer({ id, config, onDeleted }: Props) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    // Side by side when there is room (full view), stacked in a narrow container (details panel).
+    <div className="@container">
+    <div className="grid gap-6 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="min-w-0">
         {/* Sized by the photo (at most 75% of the window height): the masks cover it exactly. */}
         <div className="relative mx-auto w-fit overflow-hidden rounded-2xl bg-stone-200 shadow-sm">
@@ -221,6 +227,7 @@ export function Explorer({ id, config, onDeleted }: Props) {
           </p>
         )}
       </aside>
+    </div>
     </div>
   );
 }

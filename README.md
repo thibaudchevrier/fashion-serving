@@ -86,10 +86,15 @@ open http://localhost:8000
 
 - **Add a photo**: drop or pick a file, or paste an image URL. It is resized to at most 800 px and
   sent to the model.
-- **Explore it**: each garment's mask over the photo; hover one to highlight it (and its row). A
-  **confidence slider** filters the detections instantly (from 0.3, 0.7 by default), each can be
-  hidden, and each row shows the garment's **dominant colors** and a **cutout** download.
-- The gallery keeps every photo; the selected one is in the URL, so it can be linked.
+- **Board** (the home page): the photos as a composition. Tiles frame each outfit; hover one to
+  show it as the photo, with its masks, or as its garments cut out. **Arrange** moves and resizes
+  tiles (**Auto-arrange** tidies them); the layout is saved on the server. A click opens the
+  photo's details in a side panel.
+- **Explore** (or **Full view** from the panel): each garment's mask over the photo; hover one to
+  highlight it, also with masks hidden. A **confidence slider** filters the detections instantly
+  (from 0.3, 0.7 by default); the list is grouped into garments, accessories and parts, each
+  garment with its **dominant colors** and a **cutout** download.
+- Photos are linkable: `#/board/<id>` (board with details open), `#/images/<id>` (full view).
 - If the model is down, the photo is kept with an **Analyse** button to retry.
 - The inference service needs ~20 s to load the model; `--wait` returns once it's healthy.
 
@@ -101,6 +106,7 @@ The same features, and more, are in the JSON API, documented at http://localhost
 | `POST /api/images/from-url` | Download an image from a URL (`{"url": ...}`), then the same |
 | `GET /api/images`, `GET /api/images/{id}` | The gallery; one image's garments: label, score, box, mask (RLE), color and dominant colors |
 | `POST /api/images/{id}/analyse`, `DELETE /api/images/{id}` | Ask the model again; delete |
+| `GET /api/board`, `PUT /api/board` | The board: one tile per photo (position, size, view) on a 12-column grid |
 | `GET /api/images/{id}/image.jpg`, `.../overlay.png` | The photo; with its detections drawn |
 | `GET /api/images/{id}/garments/{index}/cutout.png` | One garment, cut out (transparent PNG) |
 

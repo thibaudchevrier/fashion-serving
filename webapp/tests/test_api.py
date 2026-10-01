@@ -51,7 +51,14 @@ def test_gallery_counts_garments_above_the_default_threshold(client):
     """The gallery lists images, counting only the detections shown by default."""
     image_id = _upload(client).json()["id"]
     assert client.get("/api/images").json() == [
-        {"id": image_id, "analysed": True, "garment_count": 1}
+        {
+            "id": image_id,
+            "analysed": True,
+            "garment_count": 1,
+            "width": 120,
+            "height": 80,
+            "outfit": DRESS_BOX,  # the belt is below the default threshold
+        }
     ]
 
 
@@ -143,3 +150,36 @@ def test_front_end_is_served_when_built(make_app, model, tmp_path):
     assert client.get("/").text == "<div id=root></div>"
     assert client.get("/api/config").json()["default_threshold"] == 0.7
     assert client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_board_places_new_images_and_saves_arrangements(client):
+    """Each image gets a tile; a saved arrangement is kept, clamped to the grid."""
+    first, second = (_upload(client).json()["id"] for _ in range(2))
+    tiles = client.get("/api/board").json()["tiles"]
+    assert [t["id"] for t in tiles] == [first, second]  # upload order
+    assert tiles[0] | {"view": "photo"} == {
+        "id": first,
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 5,
+        "view": "photo",
+    }
+    saved = client.put(
+        "/api/board",
+        json={"tiles": [{"id": second, "x": 10, "y": 2, "w": 6, "h": 4, "view": "cutouts"}]},
+    ).json()["tiles"]
+    assert saved[0] == {"id": second, "x": 6, "y": 2, "w": 6, "h": 4, "view": "cutouts"}
+    assert saved[1]["id"] == first and saved[1]["y"] == 6  # placed again, below
+    client.delete(f"/api/images/{second}")
+    assert [t["id"] for t in client.get("/api/board").json()["tiles"]] == [first]
+
+
+def test_board_rejects_impossible_tiles(client):
+    """Tiles wider than the grid or with an unknown view are refused."""
+    bad = [
+        {"id": "a" * 32, "x": 0, "y": 0, "w": 13, "h": 4},
+        {"id": "a" * 32, "x": 0, "y": 0, "w": 2, "h": 4, "view": "x"},
+    ]
+    for tile in bad:
+        assert client.put("/api/board", json={"tiles": [tile]}).status_code == 422
