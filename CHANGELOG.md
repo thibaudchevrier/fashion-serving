@@ -1,3 +1,16 @@
+## v0.4.0 (2026-10-01)
+
+### Feat
+
+- **webapp**: a board composing the photos, with details in a side panel
+- **webapp**: highlight on hover with masks hidden, garments grouped by kind
+- **webapp**: interactive React front end
+- **webapp**: FastAPI backend with a JSON API, URL uploads, garment colors and cutouts
+
+### Perf
+
+- **webapp**: multi-stage image without uv or pip, run as non-root
+
 ## v0.3.0 (2026-09-30)
 
 ### Feat
