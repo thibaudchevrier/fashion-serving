@@ -49,6 +49,25 @@ jobs:
       - run: uv sync --locked --project webapp
       - run: make test
 
+  frontend:
+    name: Front end (types, lint, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp/frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: webapp/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
   docker:
     # Dockerfiles are linted (hadolint) by the pre-commit hooks in the lint job.
     name: Webapp image build

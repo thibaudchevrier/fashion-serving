@@ -18,8 +18,8 @@ services:
       - "8000:8000"
     environment:
       INFERENCE_URL: http://inference:5000
-      SECRET_KEY: ${SECRET_KEY:-dev-only-change-me}
-      MIN_SCORE: # optional; the contract's default (0.7) when unset
+      MIN_SCORE: # optional: lowest confidence stored (0.3 when unset)
+      DISPLAY_MIN_SCORE: # optional: threshold shown by default (the contract's 0.7 when unset)
     volumes:
       - uploads:/data/uploads
     depends_on:

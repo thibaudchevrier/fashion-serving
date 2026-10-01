@@ -1,4 +1,4 @@
-"""The webapp's layers: use cases free of Flask and HTTP, adapters free of Flask."""
+"""The webapp's layers: use cases and pure modules free of the web framework and of HTTP."""
 
 import ast
 from pathlib import Path
@@ -7,22 +7,29 @@ import pytest
 
 PACKAGE = Path(__file__).parents[1] / "src" / "fashion_webapp"
 
-# Top-level packages each module may import, besides the standard library and the contract.
+WEB = {"fastapi", "starlette"}
+# Top-level packages each module may not import (besides these, anything is allowed).
 FORBIDDEN = {
-    "service": {"flask", "requests", "PIL"},  # use cases: no web framework, no HTTP, no I/O
-    "rendering": {"flask", "requests"},
-    "inference": {"flask"},
-    "storage": {"flask", "requests"},
+    "service": WEB | {"requests", "PIL"},  # use cases: no web framework, no HTTP, no I/O
+    "rendering": WEB | {"requests"},
+    "palette": WEB | {"requests"},
+    "board": WEB | {"requests", "PIL"},
+    "inference": WEB,
+    "storage": WEB | {"requests"},
+    "fetching": WEB,
 }
 # Which of the app's own modules each may import: adapters depend on the use cases, never the
 # reverse; only the composition root (app) sees the adapters.
 ALLOWED = {
-    "service": {"rendering"},
-    "rendering": set(),
+    "service": {"rendering", "palette"},
+    "rendering": {"palette"},
+    "palette": set(),
+    "board": {"service"},
     "inference": {"service"},
-    "storage": {"service"},
-    "web": {"service", "rendering"},
-    "app": {"inference", "service", "storage", "web"},
+    "storage": {"service", "board"},
+    "fetching": {"service"},
+    "api": {"service", "board"},
+    "app": {"api", "fetching", "inference", "service", "storage"},
 }
 
 

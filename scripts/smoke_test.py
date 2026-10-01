@@ -1,14 +1,14 @@
 """End-to-end check of a running stack (``docker compose up``).
 
 1. Calls the inference service directly and validates the response against the contract.
-2. Uploads the same image through the webapp and checks the page and the overlay render.
+2. Uploads the same image through the webapp's API, then checks its garments (with their colors),
+   the overlay, a garment cutout, and that the front end is served.
 
 Usage: uv run --project webapp python scripts/smoke_test.py [--inference URL] [--webapp URL]
 """
 
 import argparse
 import io
-import re
 import sys
 import time
 
@@ -71,22 +71,30 @@ def main() -> None:
     print(f"OK inference: {len(prediction['instances'])} instance(s), response matches contract")
 
     wait_until_up(f"{args.webapp}/healthz")
-    session = requests.Session()
-    page = session.post(
-        f"{args.webapp}/upload",
-        files={"file": ("smoke.jpg", jpeg, "image/jpeg")},
-        timeout=120,
+    api = f"{args.webapp}/api"
+    response = requests.post(
+        f"{api}/images", files={"file": ("smoke.jpg", jpeg, "image/jpeg")}, timeout=120
     )
-    page.raise_for_status()
-    if "model is unavailable" in page.text:
+    response.raise_for_status()
+    image = response.json()
+    if not image["analysed"]:
         sys.exit("FAIL: webapp could not reach the inference service")
-    image_id = re.search(r"/images/([0-9a-f]{32})/overlay\.png", page.text)
-    if not image_id:
-        sys.exit("FAIL: uploaded image has no predictions on the page")
-    overlay = session.get(f"{args.webapp}/images/{image_id[1]}/overlay.png", timeout=30)
-    overlay.raise_for_status()
-    session.post(f"{args.webapp}/images/{image_id[1]}/delete", timeout=30)
-    print("OK webapp: upload -> inference -> overlay")
+    if any(not garment["palette"] for garment in image["garments"]):
+        sys.exit("FAIL: a garment has no colors")
+    for path in ["overlay.png"] + [
+        f"garments/{g['index']}/cutout.png" for g in image["garments"][:1]
+    ]:
+        png = requests.get(f"{api}/images/{image['id']}/{path}", timeout=30)
+        png.raise_for_status()
+        if not png.content.startswith(b"\x89PNG"):
+            sys.exit(f"FAIL: {path} is not a PNG")
+    page = requests.get(args.webapp, timeout=30)
+    page.raise_for_status()
+    if 'id="root"' not in page.text:
+        sys.exit("FAIL: the front end is not served at /")
+    requests.delete(f"{api}/images/{image['id']}", timeout=30).raise_for_status()
+    count = len(image["garments"])
+    print(f"OK webapp: upload -> {count} garment(s) with colors -> overlay, cutout, page")
 
 
 if __name__ == "__main__":

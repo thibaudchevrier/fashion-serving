@@ -1,6 +1,8 @@
-"""Uploaded images and their predictions, stored as ``<id>.jpg`` + ``<id>.json`` files.
+"""Files in the uploads directory: the images, their predictions, and the board.
 
-Implements ``fashion_webapp.service.ImageStore`` on a local directory.
+Each image is ``<id>.jpg`` with its predictions in ``<id>.json``; the board is ``board.json``.
+Implements ``fashion_webapp.service.ImageStore`` and ``fashion_webapp.board.BoardStore`` on a
+local directory.
 """
 
 import io
@@ -12,6 +14,7 @@ from pathlib import Path
 from fashion_seg_contract.schema import Prediction
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from fashion_webapp.board import Tile
 from fashion_webapp.service import StoredImage, UnreadableImage
 
 _ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
@@ -205,3 +208,50 @@ class FileImageStore:
         (True, False)
         """
         return bool(_ID_PATTERN.match(image_id))
+
+
+class FileBoardStore:
+    """The board as ``board.json``, written atomically.
+
+    Parameters
+    ----------
+    root : str | Path
+        Directory holding the file (the uploads directory); created if missing.
+
+    Attributes
+    ----------
+    path : Path
+        The board file.
+    """
+
+    path: Path
+
+    def __init__(self, root: str | Path):
+        Path(root).mkdir(parents=True, exist_ok=True)
+        self.path = Path(root) / "board.json"
+
+    def load(self) -> list[Tile]:
+        """Read the saved tiles; a missing or unreadable file is an empty board.
+
+        Returns
+        -------
+        list[Tile]
+            The tiles.
+        """
+        try:
+            data = json.loads(self.path.read_text())
+            return [Tile(**tile) for tile in data["tiles"]]
+        except (OSError, ValueError, KeyError, TypeError):
+            return []
+
+    def save(self, tiles: list[Tile]) -> None:
+        """Replace the saved tiles (a temporary file, then renamed: never half written).
+
+        Parameters
+        ----------
+        tiles : list[Tile]
+            The new board.
+        """
+        partial = self.path.with_suffix(".partial")
+        partial.write_text(json.dumps({"tiles": [vars(t) for t in tiles]}))
+        partial.replace(self.path)

@@ -13,7 +13,7 @@ trained.
 |------|---------|
 | `models/fashion-maskrcnn.dvc` | `dvc import` pointer: source repo, `rev` and `rev_lock` (the deployed model version) |
 | `inference/Dockerfile` | `mlflow models serve` on the model; installs the model's own `requirements.txt` |
-| `webapp/` | Flask app (own uv project, Python 3.12): upload, call `/invocations`, draw masks (see below) |
+| `webapp/` | FastAPI app (own uv project, Python 3.12): JSON API; upload a photo or an image URL, call `/invocations`, describe the garments (see below). Serves `webapp/frontend` (React + TypeScript, its own README) |
 | `compose.yaml` | `inference` (:5001) + `webapp` (:8000): built from source (`make up`) or pulled from ghcr.io (`make deploy TAG=...`) |
 | `.github/workflows/release.yml` | Release: version bump, changelog, tag, GitHub Release, then both images pushed to `ghcr.io/thibaudchevrier/fashion-serving-{inference,webapp}` (amd64 + arm64) |
 | `scripts/smoke_test.py` | End-to-end check of a running stack |
@@ -22,17 +22,23 @@ trained.
 
 | Module (`webapp/src/fashion_webapp/`) | Role | May import (from the app) |
 |--------|------|------|
-| `service.py` | **Use cases** (upload, analyse, overlay), the ports they drive (`Inference`, `ImageStore` Protocols), the `StoredImage` record and the errors. No Flask, no HTTP, no files | `rendering` |
-| `rendering.py` | Draws predictions on an image (pure) | nothing |
+| `service.py` | **Use cases** (upload a file or a URL, analyse, garment details, cutout, overlay), the ports they drive (`Inference`, `ImageStore`, `ImageFetcher` Protocols), their records (`StoredImage`, `Garment`, `ImageDetails`) and errors. No web framework, no HTTP, no files | `rendering`, `palette` |
+| `rendering.py` | Images from predictions: overlay, garment cutouts, garment colors (pure) | `palette` |
+| `palette.py` | Dominant colors of pixels, and their names (pure) | nothing |
+| `board.py` | **Board use cases**: tiles kept in step with the images (new ones placed below), saving with clamping, each image's outfit box; the `Tile` record and the `BoardStore` port | `service` |
 | `inference.py` | Adapter: `InferenceClient`, the model over HTTP (an `Inference`) | `service` |
-| `storage.py` | Adapter: `FileImageStore`, images and predictions on disk (an `ImageStore`) | `service` |
-| `web.py` | Flask routes: translate requests into use cases, outcomes into pages and messages | `service`, `rendering` |
-| `app.py` | `create_app`, the composition root: settings, adapters, routes (gunicorn's `fashion_webapp.app:create_app()`) | all |
+| `storage.py` | Adapters on the uploads directory: `FileImageStore` (images and predictions, an `ImageStore`), `FileBoardStore` (`board.json`, written atomically, a `BoardStore`) | `service`, `board` |
+| `fetching.py` | Adapter: `UrlFetcher`, images from public URLs only (an `ImageFetcher`): scheme, port and address checks on every redirect, size limit | `service` |
+| `api.py` | FastAPI routes under `/api` (JSON, documented at `/docs`): requests into use cases, errors into statuses | `service`, `board` |
+| `app.py` | `create_app`, the composition root: settings, adapters, the API router, and the built front end (`FRONTEND_DIR`) at `/` (`uvicorn --factory fashion_webapp.app:create_app`) | all |
 
 Adapters depend on the use cases, never the reverse; they raise the service's errors
-(`InferenceUnavailable`, `UnreadableImage`), not their library's. `webapp/tests/test_architecture.py`
-enforces these rules; `test_service.py` tests the use cases with in-memory adapters, `test_app.py`
-the web layer with a fake model.
+(`InferenceUnavailable`, `UnreadableImage`, `UrlRejected`), not their library's.
+`webapp/tests/test_architecture.py` enforces these rules; `test_service.py` tests the use cases
+with in-memory adapters, `test_board.py` the board's, `test_api.py` the web layer with a fake model and a fake fetcher
+(`conftest.py`), `test_fetching.py` the URL checks without network. The front end talks to the API
+only; its types (`frontend/src/api.ts`) mirror `api.py`'s models: change both together.
+The URL fetcher must stay the only way the server reaches addresses chosen by users.
 
 Two uv environments: the repo root (tooling: DVC, pre-commit, commitizen) and `webapp/` (the app,
 its tests, ruff/pylint/pydoclint). `make install` syncs both.
@@ -52,8 +58,8 @@ its tests, ruff/pylint/pydoclint). `make install` syncs both.
   version, hence new images: the image version identifies the model it serves (also in its
   `io.github.thibaudchevrier.model.*` labels). Roll back by reverting the commit as `fix(model)`.
 - **Images** are only published by the release workflow, from the release tag: `X.Y.Z`, `X.Y`,
-  `latest`, `sha-<commit>`, `linux/amd64`. Never push images by hand. The inference image bakes
-  the model in: its build needs the `GDRIVE_CREDENTIALS_DATA` secret.
+  `X`, `latest`, `sha-<commit>`, for `linux/amd64` and `linux/arm64`. Never push images by hand.
+  The inference image bakes the model in: its build needs the `GDRIVE_CREDENTIALS_DATA` secret.
 - Never commit `models/fashion-maskrcnn/` (DVC output) or `.dvc/fashion-seg-train.config.local`
   (Google Drive credentials).
 - Host port 5000 is taken by AirPlay on macOS: the inference service is published on 5001.
@@ -66,7 +72,8 @@ make hooks     # once: install the pre-commit and commit-msg git hooks
 make format    # ruff format + ruff --fix
 make lint      # all pre-commit hooks on all files (exactly what CI runs; hadolint needs Docker)
 make test      # webapp tests, including docstring examples
-make check     # lint + test: run before every commit
+make front-check  # front end: types, lint, unit tests, build (Node in Docker if npm is missing)
+make check     # lint + test + front-check: run before every commit
 make model     # dvc pull: fetch the pinned model
 make up        # docker compose up --build --wait
 make smoke     # end-to-end check of the running stack
