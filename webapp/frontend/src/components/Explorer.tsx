@@ -1,8 +1,10 @@
 // One photo and its garments: masks over the photo, a confidence slider, the garment list.
+// Hovering a garment (on the photo or in the list) or a group header highlights it, also when
+// masks are hidden: then only the highlighted masks appear.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Eye, EyeOff, Layers, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { api, urls, type Config, type Garment } from "../api";
+import { api, urls, type Config, type Garment, type Group } from "../api";
 import { MaskCanvas } from "./MaskCanvas";
 
 interface Props {
@@ -11,12 +13,19 @@ interface Props {
   onDeleted: () => void;
 }
 
+const GROUPS: { group: Group; title: string }[] = [
+  { group: "garment", title: "Garments" },
+  { group: "accessory", title: "Accessories" },
+  { group: "part", title: "Parts & details" },
+];
+const NONE = new Set<number>();
+
 export function Explorer({ id, config, onDeleted }: Props) {
   const queryClient = useQueryClient();
   const image = useQuery({ queryKey: ["image", id], queryFn: () => api.image(id) });
   const [threshold, setThreshold] = useState(config.default_threshold);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [highlighted, setHighlighted] = useState<Set<number>>(NONE);
   const [showMasks, setShowMasks] = useState(true);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["images"] });
@@ -47,12 +56,19 @@ export function Explorer({ id, config, onDeleted }: Props) {
   if (image.isPending) return <p className="p-8 text-stone-500">Loading…</p>;
   if (image.isError) return <p className="p-8 text-red-700">{image.error.message}</p>;
   const details = image.data;
-  const focused = details.garments.find((g) => g.index === hovered);
+  const single = highlighted.size === 1 ? [...highlighted][0] : undefined;
+  const focused = details.garments.find((g) => g.index === single);
 
-  const toggle = (index: number) => {
+  const highlight = (indices: number[]) => {
+    setHighlighted(indices.length ? new Set(indices) : NONE);
+  };
+  const setShown = (indices: number[], shown: boolean) => {
     setHidden((current) => {
       const next = new Set(current);
-      if (!next.delete(index)) next.add(index);
+      for (const index of indices) {
+        if (shown) next.delete(index);
+        else next.add(index);
+      }
       return next;
     });
   };
@@ -67,14 +83,17 @@ export function Explorer({ id, config, onDeleted }: Props) {
             alt="Uploaded"
             className="block max-h-[75vh] w-auto max-w-full select-none"
           />
-          {showMasks && details.width !== null && details.height !== null && (
+          {details.width !== null && details.height !== null && (
             <MaskCanvas
               width={details.width}
               height={details.height}
               garments={details.garments}
               visible={visible}
-              hovered={hovered}
-              onHover={setHovered}
+              showAll={showMasks}
+              highlighted={highlighted}
+              onHover={(index) => {
+                highlight(index === null ? [] : [index]);
+              }}
             />
           )}
           {focused && (
@@ -89,6 +108,7 @@ export function Explorer({ id, config, onDeleted }: Props) {
             onClick={() => {
               setShowMasks(!showMasks);
             }}
+            title={showMasks ? "" : "Hover the photo or the list to peek at a garment"}
             className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 px-3 py-1.5 text-sm hover:bg-stone-100"
           >
             <Layers className="size-4" /> {showMasks ? "Hide masks" : "Show masks"}
@@ -141,26 +161,59 @@ export function Explorer({ id, config, onDeleted }: Props) {
                 {garments.length} of {details.garments.length} detections shown
               </span>
             </label>
-            <ul className="space-y-2">
-              {garments.map((g) => (
-                <GarmentRow
-                  key={g.index}
-                  imageId={id}
-                  garment={g}
-                  shown={!hidden.has(g.index)}
-                  highlighted={hovered === g.index}
-                  onToggle={() => {
-                    toggle(g.index);
-                  }}
-                  onHover={setHovered}
-                />
-              ))}
-              {garments.length === 0 && (
-                <li className="rounded-2xl bg-white p-4 text-sm text-stone-500 shadow-sm">
-                  No garment above this threshold.
-                </li>
-              )}
-            </ul>
+            {GROUPS.map(({ group, title }) => {
+              const members = garments.filter((g) => g.group === group);
+              if (members.length === 0) return null;
+              const indices = members.map((g) => g.index);
+              const allShown = indices.every((i) => !hidden.has(i));
+              return (
+                <section key={group} aria-label={title} className="space-y-2">
+                  <h2
+                    onPointerEnter={() => {
+                      highlight(indices.filter((i) => !hidden.has(i)));
+                    }}
+                    onPointerLeave={() => {
+                      highlight([]);
+                    }}
+                    className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-stone-500 hover:text-stone-900"
+                  >
+                    {title} <span className="font-normal">{members.length}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShown(indices, !allShown);
+                      }}
+                      title={allShown ? `Hide all ${title.toLowerCase()}` : `Show all ${title.toLowerCase()}`}
+                      className="ml-auto rounded-md p-1 hover:bg-stone-100"
+                    >
+                      {allShown ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                    </button>
+                  </h2>
+                  <ul className="space-y-2">
+                    {members.map((g) => (
+                      <GarmentRow
+                        key={g.index}
+                        imageId={id}
+                        garment={g}
+                        shown={!hidden.has(g.index)}
+                        highlighted={highlighted.has(g.index)}
+                        onToggle={() => {
+                          setShown([g.index], hidden.has(g.index));
+                        }}
+                        onHover={(on) => {
+                          highlight(on && !hidden.has(g.index) ? [g.index] : []);
+                        }}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+            {garments.length === 0 && (
+              <p className="rounded-2xl bg-white p-4 text-sm text-stone-500 shadow-sm">
+                No garment above this threshold.
+              </p>
+            )}
           </>
         ) : (
           <p className="rounded-2xl bg-white p-4 text-sm text-stone-600 shadow-sm">
@@ -178,17 +231,17 @@ interface RowProps {
   shown: boolean;
   highlighted: boolean;
   onToggle: () => void;
-  onHover: (index: number | null) => void;
+  onHover: (on: boolean) => void;
 }
 
 function GarmentRow({ imageId, garment, shown, highlighted, onToggle, onHover }: RowProps) {
   return (
     <li
       onPointerEnter={() => {
-        onHover(garment.index);
+        onHover(true);
       }}
       onPointerLeave={() => {
-        onHover(null);
+        onHover(false);
       }}
       className={`rounded-2xl bg-white p-3 shadow-sm ring-2 transition ${
         highlighted ? "ring-indigo-400" : "ring-transparent"

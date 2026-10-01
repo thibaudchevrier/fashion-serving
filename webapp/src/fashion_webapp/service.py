@@ -14,7 +14,7 @@ into these calls and their outcomes into responses.
 
 from dataclasses import dataclass
 from pathlib import PurePath
-from typing import Protocol
+from typing import Literal, Protocol
 
 from fashion_seg_contract.request import DEFAULT_MIN_SCORE
 from fashion_seg_contract.schema import Instance, Prediction
@@ -23,6 +23,10 @@ from fashion_webapp.palette import Swatch
 from fashion_webapp.rendering import class_color, garment_colors, render_cutout, render_overlay
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}
+# The iMaterialist classes come in three blocks (model class id = dataset category + 1): whole
+# garments, then accessories, then garment parts and decorations.
+LAST_GARMENT_CLASS, LAST_ACCESSORY_CLASS = 13, 27
+Group = Literal["garment", "accessory", "part"]
 
 
 class InferenceUnavailable(RuntimeError):
@@ -103,6 +107,8 @@ class Garment:
         Position in the model's response (identifies the garment within its image).
     instance : Instance
         The model's detection: class, label, score, box and mask (see the contract).
+    group : Group
+        ``"garment"``, ``"accessory"`` or ``"part"`` (see ``group_of``).
     color : str
         The class's display color, ``#rrggbb``.
     palette : list[Swatch]
@@ -111,6 +117,7 @@ class Garment:
 
     index: int
     instance: Instance
+    group: Group
     color: str
     palette: list[Swatch]
 
@@ -256,6 +263,30 @@ class ImageFetcher(Protocol):
             The downloaded file; raises ``UrlRejected`` when the URL is refused or the download
             fails.
         """
+
+
+def group_of(class_id: int) -> Group:
+    """Tell which kind of item a class is: a whole garment, an accessory, or a garment part.
+
+    Parameters
+    ----------
+    class_id : int
+        Model class id (dataset category + 1).
+
+    Returns
+    -------
+    Group
+        ``"garment"`` (shirt to cape), ``"accessory"`` (glasses to umbrella) or ``"part"`` (hood
+        to tassel: parts, closures and decorations).
+
+    Examples
+    --------
+    >>> group_of(2), group_of(24), group_of(32)  # top, shoe, sleeve
+    ('garment', 'accessory', 'part')
+    """
+    if class_id <= LAST_GARMENT_CLASS:
+        return "garment"
+    return "accessory" if class_id <= LAST_ACCESSORY_CLASS else "part"
 
 
 def check_extension(filename: str) -> None:
@@ -415,7 +446,13 @@ def details(store: ImageStore, image_id: str) -> ImageDetails | None:
         return ImageDetails(image_id, analysed=False, width=None, height=None, garments=[])
     palettes = garment_colors(image, predictions)
     garments = [
-        Garment(index, inst, _hex(class_color(inst["class_id"])), palettes[index])
+        Garment(
+            index,
+            inst,
+            group_of(inst["class_id"]),
+            _hex(class_color(inst["class_id"])),
+            palettes[index],
+        )
         for index, inst in enumerate(predictions["instances"])
     ]
     garments.sort(key=lambda g: g.instance["score"], reverse=True)

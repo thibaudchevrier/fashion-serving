@@ -154,8 +154,8 @@ def _two_garments(store):
             "height": 3,
             "width": 4,
             "instances": [
-                {"class_id": 6, "label": "belt", "score": 0.4, **whole},
-                {"class_id": 10, "label": "dress", "score": 0.9, **whole},
+                {"class_id": 20, "label": "belt", "score": 0.4, **whole},
+                {"class_id": 11, "label": "dress", "score": 0.9, **whole},
             ],
         },
     )
@@ -168,7 +168,10 @@ def test_details_sorts_garments_and_adds_colors():
     image_id = _two_garments(store)
     details = service.details(store, image_id)
     assert (details.analysed, details.width, details.height) == (True, 4, 3)
-    assert [(g.instance["label"], g.index) for g in details.garments] == [("dress", 1), ("belt", 0)]
+    assert [(g.instance["label"], g.index, g.group) for g in details.garments] == [
+        ("dress", 1, "garment"),
+        ("belt", 0, "accessory"),
+    ]
     assert details.garments[0].palette[0].name == "black"  # the test PNG is black
     assert service.details(store, "nope") is None
 

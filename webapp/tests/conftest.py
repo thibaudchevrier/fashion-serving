@@ -62,14 +62,14 @@ class FakeModel:
             "width": width,
             "instances": [
                 {
-                    "class_id": 6,
+                    "class_id": 20,
                     "label": "belt",
                     "score": 0.42,
                     "box": BELT_BOX,
                     "mask_rle": _mask(height, width, BELT_BOX),
                 },
                 {
-                    "class_id": 10,
+                    "class_id": 11,
                     "label": "dress",
                     "score": 0.93,
                     "box": DRESS_BOX,

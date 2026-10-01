@@ -10,7 +10,7 @@ from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel, Field
 
 from fashion_webapp import service
-from fashion_webapp.service import ImageFetcher, ImageStore, Inference, Settings
+from fashion_webapp.service import Group, ImageFetcher, ImageStore, Inference, Settings
 
 JPEG, PNG = "image/jpeg", "image/png"
 
@@ -62,6 +62,8 @@ class Garment(BaseModel):
         Model class id.
     label : str
         Class name.
+    group : Group
+        Kind of item: a whole garment, an accessory, or a garment part or decoration.
     score : float
         Detection confidence, between 0 and 1.
     box : list[int]
@@ -78,6 +80,7 @@ class Garment(BaseModel):
     index: int
     class_id: int
     label: str
+    group: Group
     score: float
     box: list[int]
     mask_rle: str
@@ -162,6 +165,7 @@ def _details(details: service.ImageDetails) -> ImageDetails:
                 index=g.index,
                 class_id=g.instance["class_id"],
                 label=g.instance["label"],
+                group=g.group,
                 score=g.instance["score"],
                 box=list(g.instance["box"]),
                 mask_rle=g.instance["mask_rle"],

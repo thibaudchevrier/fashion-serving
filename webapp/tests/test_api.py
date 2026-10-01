@@ -40,6 +40,7 @@ def test_upload_returns_garments_with_masks_and_colors(client, model):
     assert [g["label"] for g in image["garments"]] == ["dress", "belt"]
     dress = image["garments"][0]
     assert dress["index"] == 1 and dress["box"] == DRESS_BOX and dress["mask_rle"]
+    assert [g["group"] for g in image["garments"]] == ["garment", "accessory"]
     assert dress["color"].startswith("#") and len(dress["color"]) == 7
     assert dress["palette"][0]["name"] == "navy" and dress["palette"][0]["share"] > 0.9
     assert model.calls == [0.3]  # every detection above the stored floor is kept

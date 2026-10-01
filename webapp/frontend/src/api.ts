@@ -15,11 +15,15 @@ export interface Swatch {
   share: number;
 }
 
+/** Kind of item: a whole garment, an accessory, or a garment part or decoration. */
+export type Group = "garment" | "accessory" | "part";
+
 export interface Garment {
   /** Identifies the garment within its image (cutout URL). */
   index: number;
   class_id: number;
   label: string;
+  group: Group;
   score: number;
   /** [y1, x1, y2, x2] in image pixels, (y2, x2) excluded. */
   box: [number, number, number, number];
